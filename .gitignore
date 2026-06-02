@@ -13,8 +13,8 @@ __pycache__/
 *.db
 *.sqlite3
 
-# Uploads locales (en producción se usan URLs externas)
-app/static/uploads/
+# No ignorar uploads — las fotos del catálogo se incluyen en el repo
+# app/static/uploads/
 
 # IDE
 .vscode/
