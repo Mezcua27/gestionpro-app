@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.auth import get_current_user, get_effective_empresa_id
 
 router = APIRouter()
 
@@ -11,8 +11,9 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.ClienteResponse])
 def listar(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     return db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == user.empresa_id,
+        models.Cliente.empresa_id == eid,
         models.Cliente.activo == True
     ).order_by(models.Cliente.nombre).all()
 
@@ -20,9 +21,10 @@ def listar(request: Request, db: Session = Depends(get_db)):
 @router.get("/{id}", response_model=schemas.ClienteResponse)
 def obtener(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     c = db.query(models.Cliente).filter(
         models.Cliente.id == id,
-        models.Cliente.empresa_id == user.empresa_id
+        models.Cliente.empresa_id == eid
     ).first()
     if not c:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
@@ -32,7 +34,8 @@ def obtener(id: int, request: Request, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.ClienteResponse)
 def crear(data: schemas.ClienteCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    cliente = models.Cliente(**data.dict(), empresa_id=user.empresa_id)
+    eid = get_effective_empresa_id(user, request)
+    cliente = models.Cliente(**data.dict(), empresa_id=eid)
     db.add(cliente)
     db.commit()
     db.refresh(cliente)
@@ -42,9 +45,10 @@ def crear(data: schemas.ClienteCreate, request: Request, db: Session = Depends(g
 @router.put("/{id}", response_model=schemas.ClienteResponse)
 def actualizar(id: int, data: schemas.ClienteCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     c = db.query(models.Cliente).filter(
         models.Cliente.id == id,
-        models.Cliente.empresa_id == user.empresa_id
+        models.Cliente.empresa_id == eid
     ).first()
     if not c:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
@@ -58,9 +62,10 @@ def actualizar(id: int, data: schemas.ClienteCreate, request: Request, db: Sessi
 @router.delete("/{id}")
 def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     c = db.query(models.Cliente).filter(
         models.Cliente.id == id,
-        models.Cliente.empresa_id == user.empresa_id
+        models.Cliente.empresa_id == eid
     ).first()
     if not c:
         raise HTTPException(status_code=404, detail="Cliente no encontrado")

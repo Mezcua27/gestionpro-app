@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.auth import get_current_user, get_effective_empresa_id
 
 router = APIRouter()
 
@@ -20,8 +20,9 @@ MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
 @router.get("/", response_model=List[schemas.CatalogoItemResponse])
 def listar(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     return db.query(models.CatalogoItem).filter(
-        models.CatalogoItem.empresa_id == user.empresa_id,
+        models.CatalogoItem.empresa_id == eid,
         models.CatalogoItem.activo == True
     ).order_by(models.CatalogoItem.tipo, models.CatalogoItem.descripcion).all()
 
@@ -29,7 +30,8 @@ def listar(request: Request, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.CatalogoItemResponse)
 def crear(data: schemas.CatalogoItemCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    item = models.CatalogoItem(**data.dict(), empresa_id=user.empresa_id)
+    eid = get_effective_empresa_id(user, request)
+    item = models.CatalogoItem(**data.dict(), empresa_id=eid)
     db.add(item)
     db.commit()
     db.refresh(item)
@@ -39,9 +41,10 @@ def crear(data: schemas.CatalogoItemCreate, request: Request, db: Session = Depe
 @router.put("/{id}", response_model=schemas.CatalogoItemResponse)
 def actualizar(id: int, data: schemas.CatalogoItemCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     item = db.query(models.CatalogoItem).filter(
         models.CatalogoItem.id == id,
-        models.CatalogoItem.empresa_id == user.empresa_id
+        models.CatalogoItem.empresa_id == eid
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
@@ -55,9 +58,10 @@ def actualizar(id: int, data: schemas.CatalogoItemCreate, request: Request, db: 
 @router.delete("/{id}")
 def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     item = db.query(models.CatalogoItem).filter(
         models.CatalogoItem.id == id,
-        models.CatalogoItem.empresa_id == user.empresa_id
+        models.CatalogoItem.empresa_id == eid
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
@@ -75,9 +79,10 @@ def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
 @router.post("/{id}/foto")
 async def subir_foto(id: int, request: Request, foto: UploadFile = File(...), db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     item = db.query(models.CatalogoItem).filter(
         models.CatalogoItem.id == id,
-        models.CatalogoItem.empresa_id == user.empresa_id
+        models.CatalogoItem.empresa_id == eid
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
@@ -90,7 +95,7 @@ async def subir_foto(id: int, request: Request, foto: UploadFile = File(...), db
         raise HTTPException(status_code=400, detail="La imagen no puede superar 5 MB.")
 
     ext = foto.filename.rsplit(".", 1)[-1].lower() if "." in foto.filename else "jpg"
-    nombre_archivo = f"{user.empresa_id}_{id}_{uuid.uuid4().hex[:8]}.{ext}"
+    nombre_archivo = f"{eid}_{id}_{uuid.uuid4().hex[:8]}.{ext}"
 
     # Borrar foto anterior si existe
     if item.foto:
@@ -110,9 +115,10 @@ async def subir_foto(id: int, request: Request, foto: UploadFile = File(...), db
 @router.delete("/{id}/foto")
 def eliminar_foto(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     item = db.query(models.CatalogoItem).filter(
         models.CatalogoItem.id == id,
-        models.CatalogoItem.empresa_id == user.empresa_id
+        models.CatalogoItem.empresa_id == eid
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Ítem no encontrado")
@@ -193,6 +199,7 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
         raise HTTPException(status_code=500, detail="openpyxl no instalado en el servidor.")
 
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
 
     if not archivo.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Solo se aceptan archivos .xlsx")
@@ -245,7 +252,7 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
     existentes = {
         item.descripcion.strip().lower(): item
         for item in db.query(models.CatalogoItem).filter(
-            models.CatalogoItem.empresa_id == user.empresa_id,
+            models.CatalogoItem.empresa_id == eid,
             models.CatalogoItem.activo == True
         ).all()
     }
@@ -302,7 +309,7 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
                 actualizados += 1
             else:
                 item = models.CatalogoItem(
-                    empresa_id=user.empresa_id,
+                    empresa_id=eid,
                     tipo=tipo,
                     descripcion=descripcion,
                     precio_unitario=precio,

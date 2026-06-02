@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user, require_admin, hash_password
+from app.auth import get_current_user, get_effective_empresa_id, require_admin, hash_password
 
 router = APIRouter()
 
@@ -12,7 +12,7 @@ router = APIRouter()
 def listar_usuarios(request: Request, db: Session = Depends(get_db)):
     user = require_admin(request, db)
     return db.query(models.Usuario).filter(
-        models.Usuario.empresa_id == user.empresa_id
+        models.Usuario.empresa_id == eid
     ).order_by(models.Usuario.nombre).all()
 
 

@@ -7,7 +7,7 @@ from typing import List
 from io import BytesIO
 from app.database import get_db
 from app import models, schemas
-from app.auth import get_current_user
+from app.auth import get_current_user, get_effective_empresa_id
 
 router = APIRouter()
 
@@ -46,22 +46,24 @@ def _check_anulados(db: Session, empresa_id: int = None):
 @router.get("/", response_model=List[schemas.PresupuestoResponse])
 def listar(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
-    _check_anulados(db, user.empresa_id)
+    eid = get_effective_empresa_id(user, request)
+    _check_anulados(db, eid)
     return db.query(models.Presupuesto).filter(
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).order_by(models.Presupuesto.created_at.desc()).all()
 
 
 @router.get("/{id}", response_model=schemas.PresupuestoResponse)
 def obtener(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-    _check_anulados(db, user.empresa_id)
+    _check_anulados(db, eid)
     db.refresh(p)
     return p
 
@@ -69,18 +71,19 @@ def obtener(id: int, request: Request, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.PresupuestoResponse)
 def crear(data: schemas.PresupuestoCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     if data.cliente_id:
         c = db.query(models.Cliente).filter(
             models.Cliente.id == data.cliente_id,
-            models.Cliente.empresa_id == user.empresa_id
+            models.Cliente.empresa_id == eid
         ).first()
         if not c:
             raise HTTPException(status_code=400, detail="Cliente no válido")
 
     p = models.Presupuesto(
         **data.dict(),
-        empresa_id=user.empresa_id,
-        numero=_generar_numero(user.empresa_id, db),
+        empresa_id=eid,
+        numero=_generar_numero(eid, db),
         creado_por=user.id,
         token_cliente=secrets.token_urlsafe(32),
     )
@@ -93,9 +96,10 @@ def crear(data: schemas.PresupuestoCreate, request: Request, db: Session = Depen
 @router.put("/{id}", response_model=schemas.PresupuestoResponse)
 def actualizar(id: int, data: schemas.PresupuestoUpdate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -109,9 +113,10 @@ def actualizar(id: int, data: schemas.PresupuestoUpdate, request: Request, db: S
 @router.delete("/{id}")
 def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -125,9 +130,10 @@ def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
 @router.post("/{id}/lineas", response_model=schemas.LineaResponse)
 def añadir_linea(id: int, data: schemas.LineaCreate, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -142,9 +148,10 @@ def añadir_linea(id: int, data: schemas.LineaCreate, request: Request, db: Sess
 def editar_linea(presupuesto_id: int, linea_id: int, data: schemas.LineaUpdate,
                  request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == presupuesto_id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -164,9 +171,10 @@ def editar_linea(presupuesto_id: int, linea_id: int, data: schemas.LineaUpdate,
 @router.post("/{id}/lineas/bulk")
 def añadir_lineas_bulk(id: int, lineas: List[schemas.LineaCreate], request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -182,9 +190,10 @@ def añadir_lineas_bulk(id: int, lineas: List[schemas.LineaCreate], request: Req
 @router.delete("/{presupuesto_id}/lineas/{linea_id}")
 def eliminar_linea(presupuesto_id: int, linea_id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == presupuesto_id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
@@ -205,13 +214,14 @@ def eliminar_linea(presupuesto_id: int, linea_id: int, request: Request, db: Ses
 def descargar_pdf(id: int, request: Request, db: Session = Depends(get_db)):
     from app.pdf_generator import generar_pdf
     user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
     p = db.query(models.Presupuesto).filter(
         models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
-    empresa = db.query(models.Empresa).filter(models.Empresa.id == user.empresa_id).first()
+    empresa = db.query(models.Empresa).filter(models.Empresa.id == eid).first()
     pdf_bytes = generar_pdf(p, empresa, p.cliente)
     nombre = f"{p.numero.replace('/', '-')}.pdf"
     return StreamingResponse(
