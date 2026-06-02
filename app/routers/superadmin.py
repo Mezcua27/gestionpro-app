@@ -10,6 +10,31 @@ router = APIRouter()
 SISTEMA_EMAIL = "soporte@gestionpro.sistema"
 
 
+# ── Promover a superadmin (solo funciona si no existe ningún superadmin) ─────
+
+@router.post("/promover")
+def promover_superadmin(data: dict, db: Session = Depends(get_db)):
+    """Promueve un usuario existente a superadmin. Solo funciona si no hay ninguno."""
+    ya_existe = db.query(models.Usuario).filter(
+        models.Usuario.rol == "superadmin"
+    ).first()
+    if ya_existe:
+        raise HTTPException(status_code=403, detail="Ya existe un superadmin.")
+
+    email = data.get("email", "").strip()
+    secret = data.get("secret", "")
+    if secret != "mezcua-setup-2024":
+        raise HTTPException(status_code=403, detail="Clave incorrecta")
+
+    user = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.rol = "superadmin"
+    db.commit()
+    return {"ok": True, "mensaje": f"{user.nombre} ahora es superadmin"}
+
+
 # ── Setup inicial (solo funciona si no existe ningún superadmin) ──────────────
 
 @router.post("/setup")
