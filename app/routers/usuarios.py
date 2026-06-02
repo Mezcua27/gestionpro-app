@@ -11,6 +11,7 @@ router = APIRouter()
 @router.get("/", response_model=List[schemas.UsuarioResponse])
 def listar_usuarios(request: Request, db: Session = Depends(get_db)):
     user = require_admin(request, db)
+    eid = get_effective_empresa_id(user, request)
     return db.query(models.Usuario).filter(
         models.Usuario.empresa_id == eid
     ).order_by(models.Usuario.nombre).all()
@@ -19,10 +20,11 @@ def listar_usuarios(request: Request, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.UsuarioResponse)
 def crear_usuario(data: schemas.UsuarioCreate, request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
+    eid = get_effective_empresa_id(admin, request)
     if db.query(models.Usuario).filter(models.Usuario.email == data.email).first():
         raise HTTPException(status_code=400, detail="Email ya registrado")
     nuevo = models.Usuario(
-        empresa_id=admin.empresa_id,
+        empresa_id=eid,
         nombre=data.nombre,
         email=data.email,
         password_hash=hash_password(data.password),
@@ -37,9 +39,10 @@ def crear_usuario(data: schemas.UsuarioCreate, request: Request, db: Session = D
 @router.put("/{id}/activar")
 def toggle_usuario(id: int, request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
+    eid = get_effective_empresa_id(admin, request)
     u = db.query(models.Usuario).filter(
         models.Usuario.id == id,
-        models.Usuario.empresa_id == admin.empresa_id
+        models.Usuario.empresa_id == eid
     ).first()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
@@ -53,9 +56,10 @@ def toggle_usuario(id: int, request: Request, db: Session = Depends(get_db)):
 @router.put("/{id}/password")
 def cambiar_password(id: int, body: dict, request: Request, db: Session = Depends(get_db)):
     admin = require_admin(request, db)
+    eid = get_effective_empresa_id(admin, request)
     u = db.query(models.Usuario).filter(
         models.Usuario.id == id,
-        models.Usuario.empresa_id == admin.empresa_id
+        models.Usuario.empresa_id == eid
     ).first()
     if not u:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
