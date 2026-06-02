@@ -33,6 +33,7 @@ with engine.connect() as conn:
         conn.commit()
 
     _add_col("catalogo",      "foto",             "VARCHAR")
+    _add_col("catalogo",      "marca",            "VARCHAR")
     _add_col("presupuestos",  "token_cliente",     "VARCHAR")
     _add_col("presupuestos",  "fecha_lectura",     "DATETIME",  "TIMESTAMP")
     _add_col("presupuestos",  "fecha_aceptacion",  "DATETIME",  "TIMESTAMP")

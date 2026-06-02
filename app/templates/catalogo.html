@@ -27,7 +27,16 @@
   <button onclick="filtrar('Material')" id="f-Material" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Material</button>
   <button onclick="filtrar('Mano de Obra')" id="f-MO" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Mano de Obra</button>
   <button onclick="filtrar('Varios')" id="f-Varios" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Varios</button>
-  <input type="search" id="buscar" placeholder="Buscar..." oninput="aplicarFiltros()"
+  <!-- Filtro por marca -->
+  <select id="f-marca" onchange="aplicarFiltros()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+    <option value="">Todas las marcas</option>
+    {% set marcas = [] %}
+    {% for item in items %}{% if item.marca and item.marca not in marcas %}{% set _ = marcas.append(item.marca) %}{% endif %}{% endfor %}
+    {% for m in marcas|sort %}
+    <option value="{{ m }}">{{ m }}</option>
+    {% endfor %}
+  </select>
+  <input type="search" id="buscar" placeholder="Buscar producto, marca..." oninput="aplicarFiltros()"
     class="ml-auto border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 w-48"/>
   <!-- Toggle vista -->
   <div class="flex border border-gray-300 rounded-lg overflow-hidden">
@@ -44,6 +53,7 @@
         <th class="px-4 py-3 font-medium w-16">Foto</th>
         <th class="px-4 py-3 font-medium">Tipo</th>
         <th class="px-4 py-3 font-medium">Descripción</th>
+        <th class="px-4 py-3 font-medium">Marca</th>
         <th class="px-4 py-3 font-medium">Referencia</th>
         <th class="px-4 py-3 font-medium text-right">Precio</th>
         <th class="px-4 py-3 font-medium">Unidad</th>
@@ -52,7 +62,7 @@
     </thead>
     <tbody id="tbody" class="divide-y divide-gray-50">
       {% for item in items %}
-      <tr data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-id="{{ item.id }}" class="hover:bg-gray-50 item-row">
+      <tr data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-marca="{{ (item.marca or '')|lower }}" data-id="{{ item.id }}" class="hover:bg-gray-50 item-row">
         <td class="px-4 py-2">
           {% if item.foto %}
           <img src="/static/uploads/catalogo/{{ item.foto }}" alt="" onclick="verFoto('/static/uploads/catalogo/{{ item.foto }}')"
@@ -69,12 +79,13 @@
             {% else %}tipo-Varios{% endif %}">{{ item.tipo }}</span>
         </td>
         <td class="px-4 py-3 font-medium text-gray-800">{{ item.descripcion }}</td>
+        <td class="px-4 py-3 text-gray-500 text-sm">{{ item.marca or '—' }}</td>
         <td class="px-4 py-3 text-gray-400 font-mono text-xs">{{ item.referencia or '—' }}</td>
         <td class="px-4 py-3 text-right font-semibold text-gray-700">{{ "%.2f"|format(item.precio_unitario) }} €</td>
         <td class="px-4 py-3 text-gray-500">{{ item.unidad }}</td>
         <td class="px-4 py-3 text-right whitespace-nowrap">
           <button onclick="openFotoModal({{ item.id }})" class="text-gray-400 hover:text-blue-500 mr-1" title="Cambiar foto">📷</button>
-          <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "referencia": item.referencia}|tojson }})' class="text-blue-500 hover:text-blue-700 mr-1">✏</button>
+          <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "marca": item.marca, "referencia": item.referencia}|tojson }})' class="text-blue-500 hover:text-blue-700 mr-1">✏</button>
           <button onclick="deleteItem({{ item.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
         </td>
       </tr>
@@ -89,7 +100,7 @@
 <div id="vistaTarjetas" class="hidden">
   <div id="gridTarjetas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
     {% for item in items %}
-    <div data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-id="{{ item.id }}"
+    <div data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-marca="{{ (item.marca or '')|lower }}" data-id="{{ item.id }}"
       class="bg-white rounded-xl shadow-sm overflow-hidden group item-card">
       <!-- Imagen -->
       <div class="aspect-square bg-gray-100 relative overflow-hidden">
@@ -112,14 +123,15 @@
         <!-- Acciones hover -->
         <div class="absolute top-2 right-2 hidden group-hover:flex gap-1">
           <button onclick="openFotoModal({{ item.id }})" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Foto">📷</button>
-          <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "referencia": item.referencia}|tojson }})' class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Editar">✏</button>
+          <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "marca": item.marca, "referencia": item.referencia}|tojson }})' class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Editar">✏</button>
           <button onclick="deleteItem({{ item.id }}, this)" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow text-red-500" title="Eliminar">✕</button>
         </div>
       </div>
       <!-- Info -->
       <div class="p-3">
         <p class="text-sm font-medium text-gray-800 truncate" title="{{ item.descripcion }}">{{ item.descripcion }}</p>
-        <p class="text-xs text-gray-400 mt-0.5">{{ item.referencia or '' }}</p>
+        <p class="text-xs font-medium text-gray-500 mt-0.5">{{ item.marca or '' }}</p>
+        <p class="text-xs text-gray-400">{{ item.referencia or '' }}</p>
         <p class="text-sm font-bold text-blue-700 mt-1">{{ "%.2f"|format(item.precio_unitario) }} € / {{ item.unidad }}</p>
       </div>
     </div>
@@ -155,6 +167,10 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
           <input type="text" id="iUnidad" value="ud" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
         </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Marca / Fabricante</label>
+        <input type="text" id="iMarca" placeholder="Ej: Hager, Legrand, Schneider..." class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label>
@@ -228,10 +244,12 @@
 
   function aplicarFiltros() {
     const q = document.getElementById('buscar').value.toLowerCase();
+    const marcaFiltro = document.getElementById('f-marca').value.toLowerCase();
     document.querySelectorAll('.item-row, .item-card').forEach(el => {
-      const matchTipo = tipoActivo === 'todos' || el.dataset.tipo === tipoActivo;
-      const matchQ = !q || el.dataset.desc.includes(q) || el.innerText.toLowerCase().includes(q);
-      el.style.display = matchTipo && matchQ ? '' : 'none';
+      const matchTipo  = tipoActivo === 'todos' || el.dataset.tipo === tipoActivo;
+      const matchMarca = !marcaFiltro || el.dataset.marca === marcaFiltro;
+      const matchQ     = !q || el.dataset.desc.includes(q) || el.dataset.marca.includes(q) || el.innerText.toLowerCase().includes(q);
+      el.style.display = matchTipo && matchMarca && matchQ ? '' : 'none';
     });
   }
 
@@ -245,6 +263,7 @@
       document.getElementById('iDesc').value = '';
       document.getElementById('iPrecio').value = '0';
       document.getElementById('iUnidad').value = 'ud';
+      document.getElementById('iMarca').value = '';
       document.getElementById('iRef').value = '';
     }
     document.getElementById('modal').classList.remove('hidden');
@@ -259,6 +278,7 @@
     document.getElementById('iDesc').value = item.descripcion;
     document.getElementById('iPrecio').value = item.precio_unitario;
     document.getElementById('iUnidad').value = item.unidad;
+    document.getElementById('iMarca').value = item.marca || '';
     document.getElementById('iRef').value = item.referencia || '';
     openModal(false);
   }
@@ -271,6 +291,7 @@
       descripcion: document.getElementById('iDesc').value,
       precio_unitario: parseFloat(document.getElementById('iPrecio').value) || 0,
       unidad: document.getElementById('iUnidad').value || 'ud',
+      marca: document.getElementById('iMarca').value || null,
       referencia: document.getElementById('iRef').value || null,
     };
     try {

@@ -49,6 +49,7 @@ class CatalogoItemCreate(BaseModel):
     precio_unitario: float = 0.0
     unidad: str = "ud"
     referencia: Optional[str] = None
+    marca: Optional[str] = None
 
 
 class CatalogoItemResponse(BaseModel):
@@ -58,6 +59,7 @@ class CatalogoItemResponse(BaseModel):
     precio_unitario: float
     unidad: str
     referencia: Optional[str]
+    marca: Optional[str] = None
     foto: Optional[str] = None
     activo: bool
 

@@ -46,6 +46,7 @@ class CatalogoItem(Base):
     precio_unitario = Column(Float, default=0.0)
     unidad = Column(String, default="ud")
     referencia = Column(String)
+    marca = Column(String, nullable=True)
     foto = Column(String, nullable=True)
     activo = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())

@@ -140,7 +140,7 @@ def descargar_plantilla():
     ws = wb.active
     ws.title = "Catálogo"
 
-    headers = ["tipo", "descripcion", "precio_unitario", "unidad", "referencia"]
+    headers = ["tipo", "descripcion", "marca", "precio_unitario", "unidad", "referencia"]
     header_fill = PatternFill("solid", fgColor="1E40AF")
     header_font = Font(bold=True, color="FFFFFF")
 
@@ -153,13 +153,14 @@ def descargar_plantilla():
     ws.column_dimensions["A"].width = 15
     ws.column_dimensions["B"].width = 40
     ws.column_dimensions["C"].width = 18
-    ws.column_dimensions["D"].width = 12
-    ws.column_dimensions["E"].width = 20
+    ws.column_dimensions["D"].width = 18
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 20
 
     # Fila de ejemplo
-    ws.append(["Material", "Cable eléctrico 2.5mm²", 1.20, "m", "CAB-2.5"])
-    ws.append(["Mano de Obra", "Oficial electricista", 35.00, "h", ""])
-    ws.append(["Varios", "Transporte", 50.00, "ud", "TRANS-01"])
+    ws.append(["Material", "Cable eléctrico 2.5mm²", "Prysmian", 1.20, "m", "CAB-2.5"])
+    ws.append(["Mano de Obra", "Oficial electricista", "", 35.00, "h", ""])
+    ws.append(["Varios", "Transporte", "", 50.00, "ud", "TRANS-01"])
 
     # Hoja de ayuda
     ws2 = wb.create_sheet("Ayuda")
@@ -274,6 +275,12 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
                 if val and str(val).strip() not in ("", "None"):
                     referencia = str(val).strip()
 
+            marca = None
+            if "marca" in col:
+                val = row[col["marca"]]
+                if val and str(val).strip() not in ("", "None"):
+                    marca = str(val).strip()
+
             item = models.CatalogoItem(
                 empresa_id=user.empresa_id,
                 tipo=tipo,
@@ -281,6 +288,7 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
                 precio_unitario=precio,
                 unidad=unidad,
                 referencia=referencia,
+                marca=marca,
             )
             db.add(item)
             importados += 1
