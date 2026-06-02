@@ -14,7 +14,17 @@ IS_SQLITE = DATABASE_URL.startswith("sqlite")
 if IS_SQLITE:
     engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_size=5, max_overflow=10)
+    # Railway PostgreSQL necesita SSL
+    connect_args = {}
+    if "sslmode" not in DATABASE_URL:
+        connect_args["sslmode"] = "require"
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        pool_size=5,
+        max_overflow=10,
+        connect_args=connect_args
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
