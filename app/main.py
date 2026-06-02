@@ -76,7 +76,7 @@ def _user_or_redirect(request: Request, db: Session):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "v": "d0179f0"}
 
 
 @app.get("/", response_class=HTMLResponse)
