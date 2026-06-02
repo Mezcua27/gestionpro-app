@@ -32,7 +32,7 @@
         <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ c.telefono or '—' }}</td>
         <td class="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{{ c.nif or '—' }}</td>
         <td class="px-4 py-3 text-right">
-          <button onclick='editCliente({{ c.id }}, {{ c|tojson }})' class="text-blue-500 hover:text-blue-700 mr-2">✏</button>
+          <button onclick='editCliente({{ c.id }}, {{ {"nombre": c.nombre, "email": c.email, "telefono": c.telefono, "direccion": c.direccion, "nif": c.nif, "notas": c.notas}|tojson }})' class="text-blue-500 hover:text-blue-700 mr-2">✏</button>
           <button onclick="deleteCliente({{ c.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
         </td>
       </tr>
