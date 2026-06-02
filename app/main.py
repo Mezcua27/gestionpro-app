@@ -8,8 +8,8 @@ from dotenv import load_dotenv
 
 from app.database import engine, get_db
 from app import models
-from app.auth import get_current_user
-from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente
+from app.auth import get_current_user, get_effective_empresa_id
+from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente, superadmin
 
 load_dotenv()
 
@@ -64,6 +64,7 @@ app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
 app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["Presupuestos"])
 app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
 app.include_router(asistente.router, prefix="/api/asistente", tags=["Asistente IA"])
+app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Superadmin"])
 
 
 def _user_or_redirect(request: Request, db: Session):
@@ -89,29 +90,48 @@ def register_page(request: Request):
     return templates.TemplateResponse("registro.html", {"request": request})
 
 
+@app.get("/superadmin", response_class=HTMLResponse)
+def superadmin_page(request: Request, db: Session = Depends(get_db)):
+    user = _user_or_redirect(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    if user.rol != "superadmin":
+        return RedirectResponse(url="/dashboard")
+    total_empresas = db.query(models.Empresa).count()
+    total_usuarios = db.query(models.Usuario).filter(models.Usuario.activo == True).count()
+    total_presupuestos = db.query(models.Presupuesto).count()
+    return templates.TemplateResponse("superadmin.html", {
+        "request": request, "user": user,
+        "total_empresas": total_empresas,
+        "total_usuarios": total_usuarios,
+        "total_presupuestos": total_presupuestos,
+    })
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard_page(request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
+    if user.rol == "superadmin" and not request.cookies.get("view_empresa_id"):
+        return RedirectResponse(url="/superadmin")
+
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
 
     total_clientes = db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == user.empresa_id,
-        models.Cliente.activo == True
-    ).count()
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True).count()
     total_catalogo = db.query(models.CatalogoItem).filter(
-        models.CatalogoItem.empresa_id == user.empresa_id,
-        models.CatalogoItem.activo == True
-    ).count()
+        models.CatalogoItem.empresa_id == eid, models.CatalogoItem.activo == True).count()
     total_presupuestos = db.query(models.Presupuesto).filter(
-        models.Presupuesto.empresa_id == user.empresa_id
-    ).count()
+        models.Presupuesto.empresa_id == eid).count()
     recientes = db.query(models.Presupuesto).filter(
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).order_by(models.Presupuesto.created_at.desc()).limit(5).all()
 
     return templates.TemplateResponse("dashboard.html", {
         "request": request, "user": user,
+        "empresa_vista": empresa_vista,
         "total_clientes": total_clientes,
         "total_catalogo": total_catalogo,
         "total_presupuestos": total_presupuestos,
@@ -124,11 +144,12 @@ def catalogo_page(request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
     items = db.query(models.CatalogoItem).filter(
-        models.CatalogoItem.empresa_id == user.empresa_id,
-        models.CatalogoItem.activo == True
+        models.CatalogoItem.empresa_id == eid, models.CatalogoItem.activo == True
     ).order_by(models.CatalogoItem.tipo, models.CatalogoItem.descripcion).all()
-    return templates.TemplateResponse("catalogo.html", {"request": request, "user": user, "items": items})
+    return templates.TemplateResponse("catalogo.html", {"request": request, "user": user, "items": items, "empresa_vista": empresa_vista})
 
 
 @app.get("/clientes", response_class=HTMLResponse)
@@ -136,11 +157,12 @@ def clientes_page(request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
     lista = db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == user.empresa_id,
-        models.Cliente.activo == True
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
     ).order_by(models.Cliente.nombre).all()
-    return templates.TemplateResponse("clientes.html", {"request": request, "user": user, "clientes": lista})
+    return templates.TemplateResponse("clientes.html", {"request": request, "user": user, "clientes": lista, "empresa_vista": empresa_vista})
 
 
 @app.get("/presupuestos", response_class=HTMLResponse)
@@ -148,15 +170,16 @@ def presupuestos_page(request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
     lista = db.query(models.Presupuesto).filter(
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.empresa_id == eid
     ).order_by(models.Presupuesto.created_at.desc()).all()
     clientes_lista = db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == user.empresa_id,
-        models.Cliente.activo == True
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
     ).order_by(models.Cliente.nombre).all()
     return templates.TemplateResponse("presupuestos.html", {
-        "request": request, "user": user,
+        "request": request, "user": user, "empresa_vista": empresa_vista,
         "presupuestos": lista, "clientes": clientes_lista
     })
 
@@ -166,18 +189,18 @@ def presupuesto_detail(id: int, request: Request, db: Session = Depends(get_db))
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
     p = db.query(models.Presupuesto).filter(
-        models.Presupuesto.id == id,
-        models.Presupuesto.empresa_id == user.empresa_id
+        models.Presupuesto.id == id, models.Presupuesto.empresa_id == eid
     ).first()
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
     clientes_lista = db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == user.empresa_id,
-        models.Cliente.activo == True
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
     ).order_by(models.Cliente.nombre).all()
     return templates.TemplateResponse("presupuesto_detail.html", {
-        "request": request, "user": user,
+        "request": request, "user": user, "empresa_vista": empresa_vista,
         "p": p, "clientes": clientes_lista
     })
 

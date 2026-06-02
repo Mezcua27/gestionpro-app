@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% set active = "superadmin" %}
+{% block title %}Panel de Soporte{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">🛡 Panel de Soporte</h1>
+  <p class="text-sm text-gray-400 mt-1">Gestión y soporte de todas las empresas registradas</p>
+</div>
+
+<!-- Stats globales -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+    <p class="text-sm text-gray-400">Empresas registradas</p>
+    <p class="text-3xl font-bold text-gray-800 mt-1">{{ total_empresas }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+    <p class="text-sm text-gray-400">Usuarios activos</p>
+    <p class="text-3xl font-bold text-gray-800 mt-1">{{ total_usuarios }}</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+    <p class="text-sm text-gray-400">Presupuestos totales</p>
+    <p class="text-3xl font-bold text-gray-800 mt-1">{{ total_presupuestos }}</p>
+  </div>
+</div>
+
+<!-- Tabla de empresas -->
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <div class="px-6 py-4 border-b flex items-center justify-between">
+    <h2 class="font-semibold text-gray-700">Empresas registradas</h2>
+    <input type="search" id="buscar" placeholder="Buscar empresa..." oninput="filtrarEmpresas(this.value)"
+      class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-purple-400 w-48"/>
+  </div>
+
+  <div id="loadingEmpresas" class="px-6 py-10 text-center text-gray-400 text-sm">Cargando...</div>
+
+  <div id="tablaWrap" class="hidden overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b">
+        <tr class="text-left text-gray-400">
+          <th class="px-4 py-3 font-medium">Empresa</th>
+          <th class="px-4 py-3 font-medium">Contacto</th>
+          <th class="px-4 py-3 font-medium text-center">Usuarios</th>
+          <th class="px-4 py-3 font-medium text-center">Clientes</th>
+          <th class="px-4 py-3 font-medium text-center">Catálogo</th>
+          <th class="px-4 py-3 font-medium text-center">Presupuestos</th>
+          <th class="px-4 py-3 font-medium">Registro</th>
+          <th class="px-4 py-3"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody" class="divide-y divide-gray-50"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal detalle empresa -->
+<div id="detalleModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="detalleNombre" class="text-lg font-bold text-gray-800"></h3>
+      <button onclick="cerrarDetalle()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+
+    <!-- Info empresa -->
+    <div id="detalleInfo" class="bg-gray-50 rounded-xl p-4 text-sm mb-4 space-y-1"></div>
+
+    <!-- Usuarios -->
+    <h4 class="font-semibold text-gray-700 mb-2 text-sm">Usuarios</h4>
+    <div id="detalleUsuarios" class="space-y-2 mb-4"></div>
+
+    <!-- Presupuestos recientes -->
+    <h4 class="font-semibold text-gray-700 mb-2 text-sm">Últimos presupuestos</h4>
+    <div id="detallePresupuestos" class="space-y-1.5 mb-5"></div>
+
+    <!-- Botón entrar -->
+    <button id="btnEntrar" onclick="entrarEmpresa()"
+      class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-xl font-semibold text-sm transition">
+      🔍 Entrar como esta empresa para dar soporte
+    </button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let empresas = [];
+  let empresaActual = null;
+
+  async function cargarEmpresas() {
+    try {
+      empresas = await api('GET', '/api/superadmin/empresas');
+      renderTabla(empresas);
+      document.getElementById('loadingEmpresas').classList.add('hidden');
+      document.getElementById('tablaWrap').classList.remove('hidden');
+    } catch(e) {
+      document.getElementById('loadingEmpresas').textContent = 'Error cargando empresas: ' + e.message;
+    }
+  }
+
+  function renderTabla(lista) {
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">No hay empresas registradas</td></tr>';
+      return;
+    }
+    lista.forEach(e => {
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-gray-50 cursor-pointer';
+      tr.dataset.nombre = e.nombre.toLowerCase();
+      tr.innerHTML = `
+        <td class="px-4 py-3">
+          <p class="font-medium text-gray-800">${e.nombre}</p>
+          <p class="text-xs text-gray-400 font-mono">${e.nif || ''}</p>
+        </td>
+        <td class="px-4 py-3 text-gray-500 text-xs">
+          <p>${e.email || ''}</p>
+          <p>${e.telefono || ''}</p>
+        </td>
+        <td class="px-4 py-3 text-center font-semibold text-gray-700">${e.usuarios}</td>
+        <td class="px-4 py-3 text-center font-semibold text-gray-700">${e.clientes}</td>
+        <td class="px-4 py-3 text-center font-semibold text-gray-700">${e.catalogo}</td>
+        <td class="px-4 py-3 text-center font-semibold text-gray-700">${e.presupuestos}</td>
+        <td class="px-4 py-3 text-xs text-gray-400">${e.created_at}</td>
+        <td class="px-4 py-3 text-right">
+          <button onclick="verDetalle(${e.id})" class="text-purple-600 hover:text-purple-800 text-xs font-medium">Ver →</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function filtrarEmpresas(q) {
+    const lower = q.toLowerCase();
+    document.querySelectorAll('#tbody tr').forEach(tr => {
+      tr.style.display = !lower || tr.dataset.nombre?.includes(lower) ? '' : 'none';
+    });
+  }
+
+  async function verDetalle(id) {
+    empresaActual = id;
+    try {
+      const d = await api('GET', `/api/superadmin/empresa/${id}/detalle`);
+      document.getElementById('detalleNombre').textContent = d.empresa.nombre;
+      document.getElementById('detalleInfo').innerHTML = `
+        <p><span class="text-gray-400">Email:</span> ${d.empresa.email || '—'}</p>
+        <p><span class="text-gray-400">Teléfono:</span> ${d.empresa.telefono || '—'}</p>
+        <p><span class="text-gray-400">NIF:</span> ${d.empresa.nif || '—'}</p>
+        <p><span class="text-gray-400">Dirección:</span> ${d.empresa.direccion || '—'}</p>`;
+
+      const usuDiv = document.getElementById('detalleUsuarios');
+      usuDiv.innerHTML = '';
+      d.usuarios.forEach(u => {
+        usuDiv.innerHTML += `
+          <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+            <div>
+              <p class="text-sm font-medium text-gray-700">${u.nombre}</p>
+              <p class="text-xs text-gray-400">${u.email} · <span class="capitalize">${u.rol}</span></p>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full ${u.activo ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}">
+              ${u.activo ? 'Activo' : 'Inactivo'}
+            </span>
+          </div>`;
+      });
+
+      const presDiv = document.getElementById('detallePresupuestos');
+      presDiv.innerHTML = '';
+      if (d.presupuestos_recientes.length === 0) {
+        presDiv.innerHTML = '<p class="text-xs text-gray-400">Sin presupuestos</p>';
+      }
+      d.presupuestos_recientes.forEach(p => {
+        const colores = {borrador:'bg-gray-100 text-gray-600', enviado:'bg-blue-100 text-blue-700',
+          visto:'bg-purple-100 text-purple-700', aceptado:'bg-green-100 text-green-700',
+          rechazado:'bg-red-100 text-red-700', anulado:'bg-gray-100 text-gray-400'};
+        const c = colores[p.estado] || 'bg-gray-100 text-gray-600';
+        presDiv.innerHTML += `
+          <div class="flex items-center justify-between text-xs text-gray-600 border-b pb-1">
+            <span class="font-mono text-gray-400">${p.numero}</span>
+            <span class="flex-1 mx-3 truncate">${p.titulo}</span>
+            <span class="px-1.5 py-0.5 rounded-full text-xs ${c}">${p.estado}</span>
+          </div>`;
+      });
+
+      document.getElementById('detalleModal').classList.remove('hidden');
+    } catch(e) { toast(e.message, 'err'); }
+  }
+
+  function cerrarDetalle() {
+    document.getElementById('detalleModal').classList.add('hidden');
+    empresaActual = null;
+  }
+
+  async function entrarEmpresa() {
+    if (!empresaActual) return;
+    try {
+      await api('POST', `/api/superadmin/entrar/${empresaActual}`);
+      cerrarDetalle();
+      window.location = '/dashboard';
+    } catch(e) { toast(e.message, 'err'); }
+  }
+
+  document.getElementById('detalleModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('detalleModal')) cerrarDetalle();
+  });
+
+  cargarEmpresas();
+</script>
+{% endblock %}

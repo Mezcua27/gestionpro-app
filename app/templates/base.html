@@ -28,15 +28,22 @@
       <a href="/presupuestos" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='presupuestos' %}active{% endif %}">
         📄 <span>Presupuestos</span>
       </a>
-      {% if user.rol == 'admin' %}
+      {% if user.rol in ('admin', 'superadmin') %}
       <a href="/usuarios" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='usuarios' %}active{% endif %}">
         🔑 <span>Usuarios</span>
       </a>
       {% endif %}
+      {% if user.rol == 'superadmin' %}
+      <div class="border-t border-gray-700 mt-2 pt-2">
+        <a href="/superadmin" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-purple-800 bg-purple-900/50 transition {% if active=='superadmin' %}active{% endif %}">
+          🛡 <span class="text-purple-300">Panel Soporte</span>
+        </a>
+      </div>
+      {% endif %}
     </nav>
     <div class="px-4 py-4 border-t border-gray-700">
       <p class="text-sm font-medium text-gray-200 truncate">{{ user.nombre }}</p>
-      <p class="text-xs text-gray-400 capitalize">{{ user.rol }}</p>
+      <p class="text-xs text-purple-400 capitalize">{% if user.rol == 'superadmin' %}⚡ Superadmin{% else %}{{ user.rol }}{% endif %}</p>
       <button onclick="logout()" class="mt-2 w-full text-sm text-red-400 hover:text-red-300 text-left">
         Cerrar sesión →
       </button>
@@ -51,6 +58,14 @@
 
   <!-- Main -->
   <main class="flex-1 md:ml-64 pt-16 md:pt-0 min-h-screen">
+    {% if empresa_vista is defined and empresa_vista %}
+    <div class="bg-purple-700 text-white px-6 py-2.5 flex items-center justify-between text-sm">
+      <span>🛡 <strong>Modo soporte</strong> — Viendo como: <strong>{{ empresa_vista.nombre }}</strong></span>
+      <button onclick="salirSoporte()" class="bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg text-xs font-medium transition">
+        Salir y volver al panel →
+      </button>
+    </div>
+    {% endif %}
     <div class="p-4 md:p-8">
       {% block content %}{% endblock %}
     </div>
@@ -91,6 +106,11 @@
     async function logout() {
       await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
       window.location = '/login';
+    }
+
+    async function salirSoporte() {
+      await fetch('/api/superadmin/salir', { method: 'POST', credentials: 'include' });
+      window.location = '/superadmin';
     }
   </script>
   {% block scripts %}{% endblock %}

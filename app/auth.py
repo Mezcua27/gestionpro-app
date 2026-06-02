@@ -51,6 +51,25 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> models.
 
 def require_admin(request: Request, db: Session = Depends(get_db)) -> models.Usuario:
     user = get_current_user(request, db)
-    if user.rol != "admin":
+    if user.rol not in ("admin", "superadmin"):
         raise HTTPException(status_code=403, detail="Se requieren permisos de administrador")
     return user
+
+
+def require_superadmin(request: Request, db: Session = Depends(get_db)) -> models.Usuario:
+    user = get_current_user(request, db)
+    if user.rol != "superadmin":
+        raise HTTPException(status_code=403, detail="Acceso restringido a superadmin")
+    return user
+
+
+def get_effective_empresa_id(user: models.Usuario, request: Request) -> int:
+    """Para superadmin: devuelve la empresa que está visitando (si la hay), si no la suya."""
+    if user.rol == "superadmin":
+        view_id = request.cookies.get("view_empresa_id")
+        if view_id:
+            try:
+                return int(view_id)
+            except ValueError:
+                pass
+    return user.empresa_id
