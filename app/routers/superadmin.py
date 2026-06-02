@@ -54,8 +54,13 @@ def setup_superadmin(data: dict, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="nombre, email y password son obligatorios")
     if len(password) < 6:
         raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
-    if db.query(models.Usuario).filter(models.Usuario.email == email).first():
-        raise HTTPException(status_code=400, detail="Ese email ya está en uso")
+    # Si el usuario ya existe, promoverlo a superadmin
+    existente = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+    if existente:
+        existente.rol = "superadmin"
+        existente.password_hash = hash_password(password)
+        db.commit()
+        return {"ok": True, "mensaje": f"{existente.nombre} promovido a superadmin correctamente."}
 
     # Crear empresa sistema si no existe
     empresa = db.query(models.Empresa).filter(
