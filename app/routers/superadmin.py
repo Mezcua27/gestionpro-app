@@ -10,6 +10,54 @@ router = APIRouter()
 SISTEMA_EMAIL = "soporte@gestionpro.sistema"
 
 
+# ── Setup inicial (solo funciona si no existe ningún superadmin) ──────────────
+
+@router.post("/setup")
+def setup_superadmin(data: dict, db: Session = Depends(get_db)):
+    """Crea el primer superadmin. Solo funciona si no existe ninguno todavía."""
+    ya_existe = db.query(models.Usuario).filter(
+        models.Usuario.rol == "superadmin"
+    ).first()
+    if ya_existe:
+        raise HTTPException(status_code=403, detail="Ya existe un superadmin. Endpoint desactivado.")
+
+    nombre   = data.get("nombre", "").strip()
+    email    = data.get("email", "").strip()
+    password = data.get("password", "").strip()
+
+    if not nombre or not email or not password:
+        raise HTTPException(status_code=400, detail="nombre, email y password son obligatorios")
+    if len(password) < 6:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres")
+    if db.query(models.Usuario).filter(models.Usuario.email == email).first():
+        raise HTTPException(status_code=400, detail="Ese email ya está en uso")
+
+    # Crear empresa sistema si no existe
+    empresa = db.query(models.Empresa).filter(
+        models.Empresa.email == SISTEMA_EMAIL
+    ).first()
+    if not empresa:
+        empresa = models.Empresa(
+            nombre="GestiónPro Soporte",
+            email=SISTEMA_EMAIL,
+            nif="SISTEMA",
+        )
+        db.add(empresa)
+        db.flush()
+
+    superadmin = models.Usuario(
+        empresa_id=empresa.id,
+        nombre=nombre,
+        email=email,
+        password_hash=hash_password(password),
+        rol="superadmin",
+        activo=True,
+    )
+    db.add(superadmin)
+    db.commit()
+    return {"ok": True, "mensaje": f"Superadmin '{nombre}' creado correctamente. Este endpoint ya no funcionará."}
+
+
 def _cookie_opts():
     secure = not os.getenv("DATABASE_URL", "sqlite").startswith("sqlite")
     return dict(httponly=True, samesite="lax", secure=secure)
