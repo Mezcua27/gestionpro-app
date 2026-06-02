@@ -238,7 +238,17 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
     col = {name: i for i, name in enumerate(header_norm)}
     tipos_validos = {"Material", "Mano de Obra", "Varios"}
     importados = 0
+    actualizados = 0
     errores = []
+
+    # Cargar descripciones existentes para evitar duplicados
+    existentes = {
+        item.descripcion.strip().lower(): item
+        for item in db.query(models.CatalogoItem).filter(
+            models.CatalogoItem.empresa_id == user.empresa_id,
+            models.CatalogoItem.activo == True
+        ).all()
+    }
 
     try:
         for fila_num, row in enumerate(rows[1:], start=2):
@@ -281,19 +291,30 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
                 if val and str(val).strip() not in ("", "None"):
                     marca = str(val).strip()
 
-            item = models.CatalogoItem(
-                empresa_id=user.empresa_id,
-                tipo=tipo,
-                descripcion=descripcion,
-                precio_unitario=precio,
-                unidad=unidad,
-                referencia=referencia,
-                marca=marca,
-            )
-            db.add(item)
-            importados += 1
+            clave = descripcion.lower()
+            if clave in existentes:
+                # Actualizar precio, marca y referencia si ya existe
+                item_existente = existentes[clave]
+                item_existente.precio_unitario = precio
+                item_existente.marca = marca
+                item_existente.referencia = referencia
+                item_existente.unidad = unidad
+                actualizados += 1
+            else:
+                item = models.CatalogoItem(
+                    empresa_id=user.empresa_id,
+                    tipo=tipo,
+                    descripcion=descripcion,
+                    precio_unitario=precio,
+                    unidad=unidad,
+                    referencia=referencia,
+                    marca=marca,
+                )
+                db.add(item)
+                existentes[clave] = item
+                importados += 1
 
-        if importados:
+        if importados or actualizados:
             db.commit()
 
     except Exception as e:
@@ -303,6 +324,12 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
     return {
         "ok": True,
         "importados": importados,
+        "actualizados": actualizados,
         "errores": errores,
-        "mensaje": f"Se importaron {importados} ítems." + (f" {len(errores)} filas omitidas." if errores else "")
+        "mensaje": (
+            f"Importados {importados} nuevos" +
+            (f", actualizados {actualizados}" if actualizados else "") +
+            "." +
+            (f" {len(errores)} filas omitidas." if errores else "")
+        )
     }
