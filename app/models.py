@@ -98,6 +98,19 @@ class Presupuesto(Base):
                           cascade="all, delete-orphan", order_by="LineaPresupuesto.orden")
 
 
+class ResetToken(Base):
+    __tablename__ = "reset_tokens"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    token      = Column(String, unique=True, index=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    usado      = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    usuario = relationship("Usuario")
+
+
 class LineaPresupuesto(Base):
     __tablename__ = "lineas_presupuesto"
 

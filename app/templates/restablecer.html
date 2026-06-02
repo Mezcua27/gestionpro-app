@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Nueva contraseña</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-950 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-8">
+      <span class="text-4xl font-bold text-blue-400">⚙ GestiónPro</span>
+    </div>
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+
+      <!-- Formulario nueva contraseña -->
+      <div id="formView">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Nueva contraseña</h2>
+        <p class="text-sm text-gray-500 mb-6">Elige una contraseña segura para tu cuenta.</p>
+        <div id="error" class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"></div>
+        <form id="resetForm" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
+            <input type="password" id="pass1" required minlength="6" placeholder="Mínimo 6 caracteres"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Confirmar contraseña</label>
+            <input type="password" id="pass2" required placeholder="Repite la contraseña"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <!-- Indicador de fuerza -->
+          <div id="fuerza" class="hidden">
+            <div class="flex gap-1 mb-1">
+              <div id="f1" class="h-1.5 flex-1 rounded bg-gray-200"></div>
+              <div id="f2" class="h-1.5 flex-1 rounded bg-gray-200"></div>
+              <div id="f3" class="h-1.5 flex-1 rounded bg-gray-200"></div>
+              <div id="f4" class="h-1.5 flex-1 rounded bg-gray-200"></div>
+            </div>
+            <p id="fuerzaTxt" class="text-xs text-gray-400"></p>
+          </div>
+          <button type="submit" id="submitBtn"
+            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition">
+            Guardar nueva contraseña
+          </button>
+        </form>
+      </div>
+
+      <!-- Éxito -->
+      <div id="okView" class="hidden text-center">
+        <div class="text-5xl mb-4">✅</div>
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Contraseña actualizada</h2>
+        <p class="text-sm text-gray-500 mb-6">Ya puedes iniciar sesión con tu nueva contraseña.</p>
+        <a href="/login" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition text-center">
+          Ir al inicio de sesión
+        </a>
+      </div>
+
+      <!-- Token inválido -->
+      <div id="errorView" class="hidden text-center">
+        <div class="text-5xl mb-4">⚠️</div>
+        <h2 class="text-xl font-bold text-gray-800 mb-2">Enlace no válido</h2>
+        <p class="text-sm text-gray-500 mb-6" id="errorMsg">Este enlace ha expirado o ya fue utilizado.</p>
+        <a href="/recuperar" class="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition text-center">
+          Solicitar nuevo enlace
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = {{ token|tojson }};
+
+    // Indicador de fuerza de contraseña
+    document.getElementById('pass1').addEventListener('input', function() {
+      const v = this.value;
+      if (!v) { document.getElementById('fuerza').classList.add('hidden'); return; }
+      document.getElementById('fuerza').classList.remove('hidden');
+
+      let puntos = 0;
+      if (v.length >= 6)  puntos++;
+      if (v.length >= 10) puntos++;
+      if (/[A-Z]/.test(v) && /[a-z]/.test(v)) puntos++;
+      if (/[0-9!@#$%^&*]/.test(v)) puntos++;
+
+      const colores = ['bg-red-400','bg-orange-400','bg-yellow-400','bg-green-500'];
+      const textos  = ['Muy débil','Débil','Aceptable','Fuerte'];
+      [1,2,3,4].forEach(i => {
+        const bar = document.getElementById(`f${i}`);
+        bar.className = `h-1.5 flex-1 rounded ${i <= puntos ? colores[puntos-1] : 'bg-gray-200'}`;
+      });
+      document.getElementById('fuerzaTxt').textContent = textos[puntos-1] || '';
+    });
+
+    document.getElementById('resetForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const pass1 = document.getElementById('pass1').value;
+      const pass2 = document.getElementById('pass2').value;
+      const btn   = document.getElementById('submitBtn');
+      const errEl = document.getElementById('error');
+      errEl.classList.add('hidden');
+
+      if (pass1 !== pass2) {
+        errEl.textContent = 'Las contraseñas no coinciden';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (pass1.length < 6) {
+        errEl.textContent = 'La contraseña debe tener al menos 6 caracteres';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      try {
+        const r = await fetch('/auth/restablecer-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: TOKEN, password: pass1 })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Error');
+        document.getElementById('formView').classList.add('hidden');
+        document.getElementById('okView').classList.remove('hidden');
+      } catch(err) {
+        document.getElementById('formView').classList.add('hidden');
+        document.getElementById('errorMsg').textContent = err.message;
+        document.getElementById('errorView').classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

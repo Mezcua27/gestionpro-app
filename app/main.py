@@ -13,7 +13,7 @@ from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios,
 
 load_dotenv()
 
-models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)  # crea reset_tokens si no existe
 
 # Migraciones automáticas de columnas nuevas (SQLite + PostgreSQL)
 with engine.connect() as conn:
@@ -88,6 +88,16 @@ def login_page(request: Request):
 @app.get("/registro", response_class=HTMLResponse)
 def register_page(request: Request):
     return templates.TemplateResponse("registro.html", {"request": request})
+
+
+@app.get("/recuperar", response_class=HTMLResponse)
+def recuperar_page(request: Request):
+    return templates.TemplateResponse("recuperar.html", {"request": request})
+
+
+@app.get("/restablecer/{token}", response_class=HTMLResponse)
+def restablecer_page(token: str, request: Request):
+    return templates.TemplateResponse("restablecer.html", {"request": request, "token": token})
 
 
 @app.get("/superadmin", response_class=HTMLResponse)
