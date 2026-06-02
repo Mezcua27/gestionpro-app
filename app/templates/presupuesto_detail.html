@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+{% set active = "presupuestos" %}
+{% block title %}{{ p.numero }}{% endblock %}
+
+{% block content %}
+{% set base = namespace(v=0) %}
+{% for l in p.lineas %}{% set base.v = base.v + l.cantidad * l.precio_unitario %}{% endfor %}
+{% set total_base = base.v %}
+{% set total_dto = total_base * (p.descuento / 100) %}
+{% set total_iva = (total_base - total_dto) * (p.iva / 100) %}
+{% set total_final = total_base - total_dto + total_iva %}
+
+<!-- Cabecera -->
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div>
+    <a href="/presupuestos" class="text-sm text-gray-400 hover:text-gray-600">← Presupuestos</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-1">{{ p.titulo }}</h1>
+    <p class="text-sm text-gray-400 font-mono">{{ p.numero }}</p>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <select id="selEstado" onchange="cambiarEstado(this.value)"
+      class="border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400">
+      {% for est in ['borrador','enviado','visto','aceptado','rechazado','anulado'] %}
+      <option value="{{ est }}" {% if p.estado==est %}selected{% endif %}>{{ est|capitalize }}</option>
+      {% endfor %}
+    </select>
+    <a href="/api/presupuestos/{{ p.id }}/pdf" target="_blank"
+      class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      📄 PDF
+    </a>
+    <div class="relative" id="shareMenu">
+      <button onclick="toggleShare()" class="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+        📤 Compartir ▾
+      </button>
+      <div id="shareDropdown" class="hidden absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 z-30 overflow-hidden">
+        <button onclick="compartirWhatsApp()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-green-50 transition">
+          <span class="text-xl">💬</span><span>WhatsApp (enlace cliente)</span>
+        </button>
+        <button onclick="compartirEmail()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-blue-50 transition border-t border-gray-50">
+          <span class="text-xl">✉️</span><span>Correo electrónico</span>
+        </button>
+        <button onclick="copiarEnlaceCliente()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition border-t border-gray-50">
+          <span class="text-xl">🔗</span><span>Copiar enlace cliente</span>
+        </button>
+        <button onclick="copiarEnlacePDF()" class="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition border-t border-gray-50">
+          <span class="text-xl">📎</span><span>Copiar enlace PDF</span>
+        </button>
+      </div>
+    </div>
+    <button onclick="window.print()" class="border border-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-50 transition">🖨</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Columna izquierda -->
+  <div class="lg:col-span-2 space-y-6">
+
+    <!-- Info del presupuesto -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">Información</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+        <div>
+          <p class="text-gray-400">Cliente</p>
+          <p class="font-medium text-gray-800">{{ p.cliente.nombre if p.cliente else '—' }}</p>
+        </div>
+        <div>
+          <p class="text-gray-400">Fecha</p>
+          <p class="font-medium text-gray-800">{{ p.fecha.strftime('%d/%m/%Y') }}</p>
+        </div>
+        <div>
+          <p class="text-gray-400">Validez (días)</p>
+          <input type="number" id="inpValidez" value="{{ p.validez_dias }}" min="1" max="365"
+            class="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-400"
+            onchange="guardarCampo('validez_dias', parseInt(this.value))"/>
+        </div>
+        <!-- Descuento editable -->
+        <div>
+          <p class="text-gray-400 mb-1">Descuento (%)</p>
+          <div class="flex items-center gap-1">
+            <input type="number" id="inpDescuento" value="{{ p.descuento }}" min="0" max="100" step="0.1"
+              class="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-400"
+              oninput="marcarCambio('descuento')"/>
+            <button id="btnSaveDescuento" onclick="guardarDescuentoIVA()" class="hidden text-xs bg-blue-600 text-white px-2 py-1 rounded">✓</button>
+          </div>
+        </div>
+        <!-- IVA editable -->
+        <div>
+          <p class="text-gray-400 mb-1">IVA (%)</p>
+          <div class="flex items-center gap-1">
+            <input type="number" id="inpIVA" value="{{ p.iva }}" min="0" max="100" step="0.1"
+              class="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-400"
+              oninput="marcarCambio('iva')"/>
+            <button id="btnSaveIVA" onclick="guardarDescuentoIVA()" class="hidden text-xs bg-blue-600 text-white px-2 py-1 rounded">✓</button>
+          </div>
+        </div>
+      </div>
+      {% if p.notas %}
+      <p class="mt-3 text-sm text-gray-500 bg-gray-50 rounded-lg p-3">{{ p.notas }}</p>
+      {% endif %}
+    </div>
+
+    <!-- Líneas -->
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b">
+        <h2 class="font-semibold text-gray-700">Líneas del presupuesto</h2>
+        <button onclick="openLineaModal()" class="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition">+ Añadir</button>
+      </div>
+      <table class="w-full text-sm" id="lineasTable">
+        <thead class="bg-gray-50">
+          <tr class="text-left text-gray-400">
+            <th class="px-3 py-2 font-medium">Tipo</th>
+            <th class="px-3 py-2 font-medium">Descripción</th>
+            <th class="px-3 py-2 font-medium text-right">Cant.</th>
+            <th class="px-3 py-2 font-medium text-right">P. Unit.</th>
+            <th class="px-3 py-2 font-medium text-right">Total</th>
+            <th class="px-3 py-2 w-16"></th>
+          </tr>
+        </thead>
+        <tbody id="lineasBody" class="divide-y divide-gray-50">
+          {% for l in p.lineas %}
+          <tr id="linea-{{ l.id }}" class="group hover:bg-gray-50">
+            <!-- Vista -->
+            <td class="px-3 py-3 view-cell">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium
+                {% if l.tipo=='Material' %}tipo-Material{% elif l.tipo=='Mano de Obra' %}tipo-MO{% else %}tipo-Varios{% endif %}">
+                {{ l.tipo }}
+              </span>
+            </td>
+            <td class="px-3 py-3 text-gray-800 view-cell">{{ l.descripcion }}</td>
+            <td class="px-3 py-3 text-right text-gray-600 view-cell">{{ l.cantidad }}</td>
+            <td class="px-3 py-3 text-right text-gray-600 view-cell">{{ "%.2f"|format(l.precio_unitario) }} €</td>
+            <td class="px-3 py-3 text-right font-semibold view-cell">{{ "%.2f"|format(l.cantidad * l.precio_unitario) }} €</td>
+            <!-- Edición (oculta) -->
+            <td class="px-3 py-1 edit-cell hidden">
+              <select class="e-tipo border border-gray-300 rounded px-1 py-1 text-xs outline-none w-28">
+                <option {% if l.tipo=='Material' %}selected{% endif %}>Material</option>
+                <option {% if l.tipo=='Mano de Obra' %}selected{% endif %}>Mano de Obra</option>
+                <option {% if l.tipo=='Varios' %}selected{% endif %}>Varios</option>
+              </select>
+            </td>
+            <td class="px-3 py-1 edit-cell hidden">
+              <input type="text" class="e-desc border border-gray-300 rounded px-2 py-1 text-xs w-full outline-none" value="{{ l.descripcion }}"/>
+            </td>
+            <td class="px-3 py-1 edit-cell hidden text-right">
+              <input type="number" class="e-cant border border-gray-300 rounded px-1 py-1 text-xs w-16 text-right outline-none" value="{{ l.cantidad }}" step="0.01" min="0"/>
+            </td>
+            <td class="px-3 py-1 edit-cell hidden text-right">
+              <input type="number" class="e-precio border border-gray-300 rounded px-1 py-1 text-xs w-20 text-right outline-none" value="{{ l.precio_unitario }}" step="0.01" min="0"/>
+            </td>
+            <td class="px-3 py-1 edit-cell hidden"></td>
+            <!-- Acciones -->
+            <td class="px-3 py-3 text-right">
+              <span class="view-cell flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+                <button onclick="startEdit({{ l.id }})" class="text-blue-400 hover:text-blue-600 text-xs">✏</button>
+                <button onclick="deleteLinea({{ p.id }}, {{ l.id }}, this)" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+              </span>
+              <span class="edit-cell hidden flex justify-end gap-1">
+                <button onclick="saveEdit({{ p.id }}, {{ l.id }}, this)" class="text-green-600 hover:text-green-800 text-xs font-bold">✓</button>
+                <button onclick="cancelEdit({{ l.id }})" class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr id="emptyRow"><td colspan="6" class="px-4 py-8 text-center text-gray-400 text-sm">Sin líneas. Usa el asistente IA o añade manualmente.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <!-- Totales -->
+      <div class="border-t px-5 py-4 bg-gray-50 text-sm space-y-1">
+        <div class="flex justify-between text-gray-500">
+          <span>Base imponible</span>
+          <span id="tBase">{{ "%.2f"|format(total_base) }} €</span>
+        </div>
+        <div id="tDtoRow" class="flex justify-between text-gray-500 {% if p.descuento == 0 %}hidden{% endif %}">
+          <span id="tDtoLabel">Descuento ({{ p.descuento }}%)</span>
+          <span class="text-red-500" id="tDto">-{{ "%.2f"|format(total_dto) }} €</span>
+        </div>
+        <div class="flex justify-between text-gray-500">
+          <span id="tIvaLabel">IVA ({{ p.iva }}%)</span>
+          <span id="tIva">{{ "%.2f"|format(total_iva) }} €</span>
+        </div>
+        <div class="flex justify-between font-bold text-gray-800 text-base pt-1 border-t">
+          <span>TOTAL</span>
+          <span id="tTotal">{{ "%.2f"|format(total_final) }} €</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Columna derecha -->
+  <div class="space-y-4">
+
+    <!-- Seguimiento cliente -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">👁 Seguimiento</h2>
+
+      <!-- Estado lectura -->
+      <div class="space-y-2 text-sm mb-4">
+        <div class="flex items-center gap-2">
+          {% if p.fecha_lectura %}
+          <span class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></span>
+          <span class="text-gray-600">Leído el <strong>{{ p.fecha_lectura.strftime('%d/%m/%Y %H:%M') }}</strong></span>
+          {% else %}
+          <span class="w-2 h-2 rounded-full bg-gray-300 shrink-0"></span>
+          <span class="text-gray-400">Aún no leído por el cliente</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+          {% if p.estado == 'aceptado' %}
+          <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
+          <span class="text-green-700 font-medium">Aceptado
+            {% if p.fecha_aceptacion %}el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+          </span>
+          {% elif p.estado == 'rechazado' %}
+          <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
+          <span class="text-red-600 font-medium">Rechazado
+            {% if p.fecha_aceptacion %}el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+          </span>
+          {% elif p.estado == 'anulado' %}
+          <span class="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
+          <span class="text-gray-500">Anulado por vencimiento</span>
+          {% else %}
+          <span class="w-2 h-2 rounded-full bg-yellow-400 shrink-0"></span>
+          <span class="text-gray-400">Pendiente de decisión</span>
+          {% endif %}
+        </div>
+        <!-- Fecha vencimiento -->
+        <div class="flex items-center gap-2 text-xs text-gray-400 border-t pt-2">
+          <span>⏰</span>
+          <span>Vence el
+            <strong class="text-gray-600">
+              {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}
+            </strong>
+            ({{ p.validez_dias }} días)
+          </span>
+        </div>
+      </div>
+
+      <!-- Enlace cliente -->
+      <div class="bg-gray-50 rounded-lg p-3">
+        <p class="text-xs text-gray-400 mb-1.5 font-medium">Enlace para el cliente:</p>
+        <div class="flex gap-2">
+          <input type="text" readonly id="clienteLink"
+            value="{{ request.base_url }}ver/{{ p.token_cliente }}"
+            class="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-600 outline-none min-w-0"/>
+          <button onclick="copiarEnlaceCliente()" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded transition">Copiar</button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1.5">Al abrirlo, el cliente puede aceptar o rechazar el presupuesto.</p>
+      </div>
+    </div>
+
+    <!-- Asistente IA -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-1">🤖 Asistente IA</h2>
+      <p class="text-xs text-gray-400 mb-3">Describe los materiales y trabajos en lenguaje natural.</p>
+      <textarea id="aiMsg" rows="4" placeholder="Ej: Añade 3 enchufes a 8€ y 2 horas de mano de obra de oficial a 35€/h"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+      <button onclick="procesarIA()" id="aiBtn"
+        class="mt-2 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
+        <span id="aiBtnTxt">Procesar con IA</span>
+      </button>
+      <div id="aiPreview" class="hidden mt-4">
+        <p class="text-xs font-semibold text-gray-500 mb-2">Vista previa — confirma antes de añadir:</p>
+        <div id="aiItems" class="space-y-2 max-h-64 overflow-y-auto"></div>
+        <div class="flex gap-2 mt-3">
+          <button onclick="cancelarIA()" class="flex-1 border border-gray-300 text-gray-600 py-1.5 rounded-lg text-sm hover:bg-gray-50">Cancelar</button>
+          <button onclick="confirmarIA()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-lg text-sm font-medium">✓ Añadir todo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal añadir línea -->
+<div id="lineaModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Añadir línea</h3>
+    <form id="lineaForm" class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <select id="lTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+          <option>Material</option><option>Mano de Obra</option><option>Varios</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+        <input type="text" id="lDesc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+          <input type="number" id="lCant" value="1" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Precio unit. €</label>
+          <input type="number" id="lPrecio" value="0" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-1">
+        <button type="button" onclick="closeLineaModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Añadir</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const PRESUPUESTO_ID = {{ p.id }};
+  let curIVA       = {{ p.iva }};
+  let curDescuento = {{ p.descuento }};
+  const PRES_NUMERO    = {{ p.numero|tojson }};
+  const PRES_TITULO    = {{ p.titulo|tojson }};
+  const CLIENTE_NOMBRE = {{ (p.cliente.nombre if p.cliente else '')|tojson }};
+  const CLIENTE_EMAIL  = {{ (p.cliente.email if p.cliente and p.cliente.email else '')|tojson }};
+  const EMPRESA_NOMBRE = {{ user.empresa.nombre|tojson }};
+  const EMPRESA_TEL    = {{ (user.empresa.telefono or '')|tojson }};
+  const TOKEN_CLIENTE  = {{ p.token_cliente|tojson }};
+  let lineasIA = [];
+
+  // ── URLs ──────────────────────────────────────────────────────────────────
+  function _clienteUrl() { return `${window.location.origin}/ver/${TOKEN_CLIENTE}`; }
+  function _pdfUrl()     { return `${window.location.origin}/api/presupuestos/${PRESUPUESTO_ID}/pdf`; }
+
+  // ── Compartir ─────────────────────────────────────────────────────────────
+  function toggleShare() { document.getElementById('shareDropdown').classList.toggle('hidden'); }
+  document.addEventListener('click', e => {
+    const m = document.getElementById('shareMenu');
+    if (m && !m.contains(e.target)) document.getElementById('shareDropdown').classList.add('hidden');
+  });
+
+  function _calcTotal() {
+    let base = 0;
+    document.querySelectorAll('#lineasBody tr[id^="linea-"]').forEach(tr => {
+      const vc = [...tr.querySelectorAll('.view-cell')];
+      const cant   = parseFloat(vc[2]?.textContent) || 0;
+      const precio = parseFloat(vc[3]?.textContent) || 0;
+      base += cant * precio;
+    });
+    const dto   = base * (curDescuento / 100);
+    const total = base - dto + (base - dto) * (curIVA / 100);
+    return total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
+  }
+
+  function compartirWhatsApp() {
+    const total = _calcTotal();
+    const cliente = CLIENTE_NOMBRE ? `para *${CLIENTE_NOMBRE}*` : '';
+    const msg = `Hola 👋\n\nTe envío el presupuesto *${PRES_NUMERO}* ${cliente}.\n` +
+                `📋 *${PRES_TITULO}*\n💶 Total: *${total}*\n\n` +
+                `👉 Puedes revisarlo y aceptarlo aquí:\n${_clienteUrl()}\n\n` +
+                `Un saludo,\n*${EMPRESA_NOMBRE}*` + (EMPRESA_TEL ? `\n📞 ${EMPRESA_TEL}` : '');
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+    document.getElementById('shareDropdown').classList.add('hidden');
+    // Marcar como enviado automáticamente
+    api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado: 'enviado' }).catch(() => {});
+  }
+
+  function compartirEmail() {
+    const total = _calcTotal();
+    const asunto = encodeURIComponent(`Presupuesto ${PRES_NUMERO} - ${PRES_TITULO}`);
+    const cuerpo = encodeURIComponent(
+      `Estimado/a cliente,\n\nAdjunto encontrará el presupuesto ${PRES_NUMERO}.\n\n` +
+      `Concepto: ${PRES_TITULO}\nImporte total: ${total}\n\n` +
+      `Puede revisarlo y aceptarlo o rechazarlo en el siguiente enlace:\n${_clienteUrl()}\n\n` +
+      `Si prefiere el PDF:\n${_pdfUrl()}\n\n` +
+      `Quedamos a su disposición.\n\nUn cordial saludo,\n${EMPRESA_NOMBRE}` +
+      (EMPRESA_TEL ? `\nTel: ${EMPRESA_TEL}` : '')
+    );
+    window.location.href = `mailto:${CLIENTE_EMAIL}?subject=${asunto}&body=${cuerpo}`;
+    document.getElementById('shareDropdown').classList.add('hidden');
+    api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado: 'enviado' }).catch(() => {});
+  }
+
+  async function copiarEnlaceCliente() {
+    document.getElementById('shareDropdown').classList.add('hidden');
+    try { await navigator.clipboard.writeText(_clienteUrl()); }
+    catch { document.getElementById('clienteLink').select(); document.execCommand('copy'); }
+    toast('Enlace del cliente copiado');
+    api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado: 'enviado' }).catch(() => {});
+  }
+
+  async function copiarEnlacePDF() {
+    document.getElementById('shareDropdown').classList.add('hidden');
+    try { await navigator.clipboard.writeText(_pdfUrl()); }
+    catch { prompt('Enlace PDF:', _pdfUrl()); }
+    toast('Enlace PDF copiado');
+  }
+
+  // ── Estado ────────────────────────────────────────────────────────────────
+  async function cambiarEstado(estado) {
+    try {
+      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado });
+      toast('Estado actualizado');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Guardar campo simple (validez) ────────────────────────────────────────
+  async function guardarCampo(campo, valor) {
+    try {
+      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { [campo]: valor });
+      toast(`${campo} actualizado`);
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Descuento / IVA editables ─────────────────────────────────────────────
+  function marcarCambio(campo) {
+    document.getElementById(campo === 'descuento' ? 'btnSaveDescuento' : 'btnSaveIVA').classList.remove('hidden');
+    document.getElementById(campo === 'iva' ? 'btnSaveDescuento' : 'btnSaveIVA').classList.remove('hidden');
+  }
+
+  async function guardarDescuentoIVA() {
+    const desc = parseFloat(document.getElementById('inpDescuento').value) || 0;
+    const iva  = parseFloat(document.getElementById('inpIVA').value) || 0;
+    try {
+      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { descuento: desc, iva: iva });
+      curDescuento = desc;
+      curIVA = iva;
+      document.getElementById('btnSaveDescuento').classList.add('hidden');
+      document.getElementById('btnSaveIVA').classList.add('hidden');
+      // Actualizar etiquetas y totales
+      document.getElementById('tDtoLabel').textContent = `Descuento (${desc}%)`;
+      document.getElementById('tIvaLabel').textContent = `IVA (${iva}%)`;
+      recalcularTotales();
+      toast('Descuento e IVA actualizados');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Edición inline de líneas ──────────────────────────────────────────────
+  function startEdit(lid) {
+    const tr = document.getElementById(`linea-${lid}`);
+    tr.querySelectorAll('.view-cell').forEach(el => el.classList.add('hidden'));
+    tr.querySelectorAll('.edit-cell').forEach(el => el.classList.remove('hidden'));
+  }
+
+  function cancelEdit(lid) {
+    const tr = document.getElementById(`linea-${lid}`);
+    tr.querySelectorAll('.view-cell').forEach(el => el.classList.remove('hidden'));
+    tr.querySelectorAll('.edit-cell').forEach(el => el.classList.add('hidden'));
+  }
+
+  async function saveEdit(pid, lid, btn) {
+    const tr = document.getElementById(`linea-${lid}`);
+    const tipo       = tr.querySelector('.e-tipo').value;
+    const descripcion = tr.querySelector('.e-desc').value.trim();
+    const cantidad   = parseFloat(tr.querySelector('.e-cant').value) || 0;
+    const precio     = parseFloat(tr.querySelector('.e-precio').value) || 0;
+    if (!descripcion) return toast('La descripción no puede estar vacía', 'err');
+    try {
+      const linea = await api('PUT', `/api/presupuestos/${pid}/lineas/${lid}`,
+        { tipo, descripcion, cantidad, precio_unitario: precio });
+      // Actualizar celdas de vista
+      const vc = [...tr.querySelectorAll('.view-cell')];
+      const tipoClass = tipo === 'Material' ? 'tipo-Material' : tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+      vc[0].innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${tipoClass}">${tipo}</span>`;
+      vc[1].textContent = descripcion;
+      vc[2].textContent = cantidad;
+      vc[3].textContent = precio.toFixed(2) + ' €';
+      vc[4].textContent = (cantidad * precio).toFixed(2) + ' €';
+      cancelEdit(lid);
+      recalcularTotales();
+      toast('Línea actualizada');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Añadir línea ──────────────────────────────────────────────────────────
+  function openLineaModal()  { document.getElementById('lineaModal').classList.remove('hidden'); }
+  function closeLineaModal() { document.getElementById('lineaModal').classList.add('hidden'); }
+
+  document.getElementById('lineaForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = {
+      tipo: document.getElementById('lTipo').value,
+      descripcion: document.getElementById('lDesc').value,
+      cantidad: parseFloat(document.getElementById('lCant').value) || 1,
+      precio_unitario: parseFloat(document.getElementById('lPrecio').value) || 0,
+      orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length,
+    };
+    try {
+      const linea = await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas`, body);
+      agregarFilaLinea(linea);
+      recalcularTotales();
+      closeLineaModal();
+      document.getElementById('lDesc').value = '';
+      toast('Línea añadida');
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function deleteLinea(pid, lid, btn) {
+    try {
+      await api('DELETE', `/api/presupuestos/${pid}/lineas/${lid}`);
+      document.getElementById(`linea-${lid}`).remove();
+      recalcularTotales();
+      toast('Línea eliminada');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  function agregarFilaLinea(l) {
+    document.getElementById('emptyRow')?.remove();
+    const tc = l.tipo === 'Material' ? 'tipo-Material' : l.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+    const tr = document.createElement('tr');
+    tr.id = `linea-${l.id}`;
+    tr.className = 'group hover:bg-gray-50';
+    tr.innerHTML = `
+      <td class="px-3 py-3 view-cell"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${tc}">${l.tipo}</span></td>
+      <td class="px-3 py-3 text-gray-800 view-cell">${l.descripcion}</td>
+      <td class="px-3 py-3 text-right text-gray-600 view-cell">${l.cantidad}</td>
+      <td class="px-3 py-3 text-right text-gray-600 view-cell">${parseFloat(l.precio_unitario).toFixed(2)} €</td>
+      <td class="px-3 py-3 text-right font-semibold view-cell">${(l.cantidad * l.precio_unitario).toFixed(2)} €</td>
+      <td class="px-3 py-1 edit-cell hidden"><select class="e-tipo border border-gray-300 rounded px-1 py-1 text-xs outline-none w-28">
+        <option ${l.tipo==='Material'?'selected':''}>Material</option>
+        <option ${l.tipo==='Mano de Obra'?'selected':''}>Mano de Obra</option>
+        <option ${l.tipo==='Varios'?'selected':''}>Varios</option>
+      </select></td>
+      <td class="px-3 py-1 edit-cell hidden"><input type="text" class="e-desc border border-gray-300 rounded px-2 py-1 text-xs w-full outline-none" value="${l.descripcion}"/></td>
+      <td class="px-3 py-1 edit-cell hidden text-right"><input type="number" class="e-cant border border-gray-300 rounded px-1 py-1 text-xs w-16 text-right outline-none" value="${l.cantidad}" step="0.01" min="0"/></td>
+      <td class="px-3 py-1 edit-cell hidden text-right"><input type="number" class="e-precio border border-gray-300 rounded px-1 py-1 text-xs w-20 text-right outline-none" value="${l.precio_unitario}" step="0.01" min="0"/></td>
+      <td class="px-3 py-1 edit-cell hidden"></td>
+      <td class="px-3 py-3 text-right">
+        <span class="view-cell flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
+          <button onclick="startEdit(${l.id})" class="text-blue-400 hover:text-blue-600 text-xs">✏</button>
+          <button onclick="deleteLinea(${PRESUPUESTO_ID}, ${l.id}, this)" class="text-red-400 hover:text-red-600 text-xs">✕</button>
+        </span>
+        <span class="edit-cell hidden flex justify-end gap-1">
+          <button onclick="saveEdit(${PRESUPUESTO_ID}, ${l.id}, this)" class="text-green-600 hover:text-green-800 text-xs font-bold">✓</button>
+          <button onclick="cancelEdit(${l.id})" class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+        </span>
+      </td>`;
+    document.getElementById('lineasBody').appendChild(tr);
+  }
+
+  // ── Totales ───────────────────────────────────────────────────────────────
+  function recalcularTotales() {
+    let base = 0;
+    document.querySelectorAll('#lineasBody tr[id^="linea-"]').forEach(tr => {
+      const vc = [...tr.querySelectorAll('.view-cell')];
+      const cant   = parseFloat(vc[2]?.textContent) || 0;
+      const precio = parseFloat(vc[3]?.textContent) || 0;
+      base += cant * precio;
+    });
+    const dto   = base * (curDescuento / 100);
+    const iva   = (base - dto) * (curIVA / 100);
+    const total = base - dto + iva;
+    document.getElementById('tBase').textContent = base.toFixed(2) + ' €';
+    document.getElementById('tDto').textContent  = '-' + dto.toFixed(2) + ' €';
+    document.getElementById('tIva').textContent  = iva.toFixed(2) + ' €';
+    document.getElementById('tTotal').textContent = total.toFixed(2) + ' €';
+    document.getElementById('tDtoRow').classList.toggle('hidden', curDescuento === 0);
+  }
+
+  // ── Asistente IA ──────────────────────────────────────────────────────────
+  async function procesarIA() {
+    const msg = document.getElementById('aiMsg').value.trim();
+    if (!msg) return toast('Escribe algo primero', 'err');
+    const btn = document.getElementById('aiBtn');
+    const txt = document.getElementById('aiBtnTxt');
+    btn.disabled = true; txt.textContent = 'Procesando...';
+    try {
+      const res = await api('POST', '/api/asistente/procesar-lineas',
+        { id_presupuesto: String(PRESUPUESTO_ID), mensaje: msg });
+      lineasIA = res.datos_extraidos;
+      mostrarPreviewIA(lineasIA);
+    } catch(err) { toast(err.message, 'err'); }
+    finally { btn.disabled = false; txt.textContent = 'Procesar con IA'; }
+  }
+
+  function mostrarPreviewIA(items) {
+    const container = document.getElementById('aiItems');
+    container.innerHTML = '';
+    items.forEach(item => {
+      const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+      const div = document.createElement('div');
+      div.className = 'bg-gray-50 rounded-lg p-3 text-xs';
+      div.innerHTML = `
+        <div class="flex items-start gap-2">
+          <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc} shrink-0">${item.tipo}</span>
+          <span class="flex-1 text-gray-700 font-medium">${item.descripcion}</span>
+        </div>
+        <div class="flex gap-4 mt-1.5 text-gray-500">
+          <span>Cant: <strong>${item.cantidad}</strong></span>
+          <span>P/u: <strong>${parseFloat(item.precio_unitario).toFixed(2)} €</strong></span>
+          <span>Total: <strong>${(item.cantidad * item.precio_unitario).toFixed(2)} €</strong></span>
+        </div>`;
+      container.appendChild(div);
+    });
+    document.getElementById('aiPreview').classList.remove('hidden');
+  }
+
+  function cancelarIA() { lineasIA = []; document.getElementById('aiPreview').classList.add('hidden'); }
+
+  async function confirmarIA() {
+    if (!lineasIA.length) return;
+    const orden = document.querySelectorAll('#lineasBody tr[id^="linea-"]').length;
+    const payload = lineasIA.map((l, i) => ({
+      tipo: l.tipo, descripcion: l.descripcion,
+      cantidad: l.cantidad, precio_unitario: l.precio_unitario, orden: orden + i
+    }));
+    try {
+      await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas/bulk`, payload);
+      toast('Líneas añadidas');
+      cancelarIA();
+      document.getElementById('aiMsg').value = '';
+      setTimeout(() => location.reload(), 600);
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('lineaModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('lineaModal')) closeLineaModal();
+  });
+</script>
+{% endblock %}

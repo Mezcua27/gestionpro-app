@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Presupuesto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .tipo-Material  { background:#DBEAFE; color:#1E40AF; }
+    .tipo-MO        { background:#D1FAE5; color:#065F46; }
+    .tipo-Varios    { background:#F3E8FF; color:#6B21A8; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Loading -->
+  <div id="loading" class="flex items-center justify-center min-h-screen">
+    <div class="text-center text-gray-400">
+      <div class="text-5xl mb-4 animate-pulse">📄</div>
+      <p class="text-sm">Cargando presupuesto...</p>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="errorView" class="hidden flex items-center justify-center min-h-screen p-4">
+    <div class="text-center">
+      <div class="text-6xl mb-4">❌</div>
+      <h2 class="text-xl font-bold text-gray-700 mb-2">Presupuesto no encontrado</h2>
+      <p class="text-gray-400 text-sm">El enlace no es válido o ha caducado.</p>
+    </div>
+  </div>
+
+  <!-- Contenido -->
+  <div id="mainView" class="hidden max-w-3xl mx-auto px-4 py-8">
+
+    <!-- Empresa + estado -->
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+      <div>
+        <p id="empresaNombre" class="text-xl font-bold text-gray-800"></p>
+        <p id="empresaContacto" class="text-sm text-gray-400 mt-0.5"></p>
+      </div>
+      <div id="estadoBadge" class="px-3 py-1.5 rounded-full text-sm font-semibold"></div>
+    </div>
+
+    <!-- Número + título -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 mb-4">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div>
+          <p id="presNumero" class="text-xs font-mono text-gray-400"></p>
+          <h1 id="presTitulo" class="text-2xl font-bold text-gray-800 mt-0.5"></h1>
+        </div>
+        <div class="text-right text-sm text-gray-500 space-y-0.5">
+          <p>Emisión: <span id="presFecha" class="font-medium text-gray-700"></span></p>
+          <p>Válido hasta: <span id="presVencimiento" class="font-medium text-gray-700"></span></p>
+          <p id="clienteInfo"></p>
+        </div>
+      </div>
+
+      <!-- Aviso expirado -->
+      <div id="avisoExpirado" class="hidden bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-4">
+        ⏰ El plazo de aceptación de este presupuesto ha vencido.
+      </div>
+      <!-- Aviso ya decidido -->
+      <div id="avisoDecidido" class="hidden rounded-xl px-4 py-3 text-sm font-medium mb-4"></div>
+
+      <!-- Líneas -->
+      <table class="w-full text-sm mb-1">
+        <thead>
+          <tr class="text-left text-xs text-gray-400 border-b">
+            <th class="pb-2 font-medium">Tipo</th>
+            <th class="pb-2 font-medium">Descripción</th>
+            <th class="pb-2 font-medium text-right">Cant.</th>
+            <th class="pb-2 font-medium text-right">P. unit.</th>
+            <th class="pb-2 font-medium text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody id="lineasBody" class="divide-y divide-gray-50"></tbody>
+      </table>
+
+      <!-- Totales -->
+      <div id="totalesSection" class="border-t pt-3 mt-3 space-y-1.5 text-sm"></div>
+    </div>
+
+    <!-- Notas -->
+    <div id="notasCard" class="hidden bg-white rounded-2xl shadow-sm p-5 mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Notas y condiciones</p>
+      <p id="notasTexto" class="text-sm text-gray-600"></p>
+    </div>
+
+    <!-- Acciones cliente -->
+    <div id="accionesCard" class="bg-white rounded-2xl shadow-sm p-6 mb-8">
+      <p class="text-sm text-gray-600 mb-4 text-center">
+        Por favor, revisa el presupuesto y haz saber tu decisión dentro del plazo indicado.
+      </p>
+      <div class="flex gap-3">
+        <button id="btnRechazar" onclick="accion('rechazar')"
+          class="flex-1 border-2 border-red-300 text-red-600 hover:bg-red-50 font-semibold py-3 rounded-xl transition text-sm">
+          ✕ Rechazar
+        </button>
+        <button id="btnAceptar" onclick="accion('aceptar')"
+          class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-xl transition text-sm shadow">
+          ✓ Aceptar presupuesto
+        </button>
+      </div>
+      <div id="accionError" class="hidden mt-3 text-center text-sm text-red-600"></div>
+    </div>
+
+    <!-- Confirmación -->
+    <div id="confirmacionCard" class="hidden bg-white rounded-2xl shadow-sm p-8 mb-8 text-center">
+      <div id="confirmIcon" class="text-6xl mb-4"></div>
+      <h2 id="confirmTitulo" class="text-xl font-bold text-gray-800 mb-2"></h2>
+      <p id="confirmMsg" class="text-sm text-gray-500"></p>
+    </div>
+
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastInner" class="px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium"></div>
+  </div>
+
+  <script>
+    const TOKEN = {{ token|tojson }};
+    let presData = null;
+
+    function toast(msg, type = 'ok') {
+      const el = document.getElementById('toast');
+      const inn = document.getElementById('toastInner');
+      inn.textContent = msg;
+      inn.className = 'px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium ' +
+        (type === 'ok' ? 'bg-green-600' : 'bg-red-600');
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3500);
+    }
+
+    function fmt(n) {
+      return Number(n).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    }
+
+    const ESTADO_STYLES = {
+      borrador:  { bg: 'bg-gray-100',   text: 'text-gray-600',  label: 'Borrador'  },
+      enviado:   { bg: 'bg-blue-100',   text: 'text-blue-700',  label: 'Enviado'   },
+      visto:     { bg: 'bg-purple-100', text: 'text-purple-700',label: 'Visto'     },
+      aceptado:  { bg: 'bg-green-100',  text: 'text-green-700', label: 'Aceptado'  },
+      rechazado: { bg: 'bg-red-100',    text: 'text-red-700',   label: 'Rechazado' },
+      anulado:   { bg: 'bg-gray-100',   text: 'text-gray-500',  label: 'Anulado'   },
+    };
+
+    async function cargar() {
+      try {
+        const r = await fetch(`/api/presupuestos/cliente/${TOKEN}`);
+        if (!r.ok) throw new Error();
+        presData = await r.json();
+        renderizar(presData);
+      } catch {
+        document.getElementById('loading').classList.add('hidden');
+        document.getElementById('errorView').classList.remove('hidden');
+      }
+    }
+
+    function renderizar(d) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('mainView').classList.remove('hidden');
+
+      // Empresa
+      document.getElementById('empresaNombre').textContent = d.empresa.nombre;
+      const contacto = [d.empresa.telefono, d.empresa.email].filter(Boolean).join('  ·  ');
+      document.getElementById('empresaContacto').textContent = contacto;
+
+      // Estado badge
+      const s = ESTADO_STYLES[d.estado] || ESTADO_STYLES.borrador;
+      const badge = document.getElementById('estadoBadge');
+      badge.className = `px-3 py-1.5 rounded-full text-sm font-semibold ${s.bg} ${s.text}`;
+      badge.textContent = s.label;
+
+      // Cabecera
+      document.getElementById('presNumero').textContent = d.numero;
+      document.getElementById('presTitulo').textContent = d.titulo;
+      document.getElementById('presFecha').textContent = d.fecha;
+      document.getElementById('presVencimiento').textContent = d.fecha_vencimiento || '—';
+      if (d.cliente?.nombre) {
+        document.getElementById('clienteInfo').innerHTML =
+          `Para: <span class="font-medium text-gray-700">${d.cliente.nombre}</span>`;
+      }
+
+      // Avisos
+      if (d.expirado && !['aceptado','rechazado'].includes(d.estado)) {
+        document.getElementById('avisoExpirado').classList.remove('hidden');
+      }
+      if (d.estado === 'aceptado') {
+        const el = document.getElementById('avisoDecidido');
+        el.className = 'bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm font-medium mb-4 text-green-700';
+        el.textContent = `✓ Presupuesto aceptado el ${d.fecha_aceptacion}`;
+        el.classList.remove('hidden');
+      } else if (d.estado === 'rechazado') {
+        const el = document.getElementById('avisoDecidido');
+        el.className = 'bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm font-medium mb-4 text-red-700';
+        el.textContent = `✕ Presupuesto rechazado el ${d.fecha_aceptacion}`;
+        el.classList.remove('hidden');
+      }
+
+      // Líneas
+      const tbody = document.getElementById('lineasBody');
+      tbody.innerHTML = '';
+      d.lineas.forEach(l => {
+        const tc = l.tipo === 'Material' ? 'tipo-Material' : l.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+        tbody.innerHTML += `
+          <tr>
+            <td class="py-2.5 pr-3">
+              <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${l.tipo}</span>
+            </td>
+            <td class="py-2.5 text-gray-800">${l.descripcion}</td>
+            <td class="py-2.5 text-right text-gray-500">${l.cantidad}</td>
+            <td class="py-2.5 text-right text-gray-500">${fmt(l.precio_unitario)}</td>
+            <td class="py-2.5 text-right font-semibold text-gray-700">${fmt(l.total)}</td>
+          </tr>`;
+      });
+
+      // Totales
+      const tot = document.getElementById('totalesSection');
+      tot.innerHTML = `
+        <div class="flex justify-between text-gray-500">
+          <span>Base imponible</span><span>${fmt(d.total_base)}</span>
+        </div>
+        ${d.descuento > 0 ? `
+        <div class="flex justify-between text-red-500">
+          <span>Descuento (${d.descuento}%)</span><span>- ${fmt(d.total_dto)}</span>
+        </div>` : ''}
+        <div class="flex justify-between text-gray-500">
+          <span>IVA (${d.iva}%)</span><span>${fmt(d.total_iva)}</span>
+        </div>
+        <div class="flex justify-between font-bold text-gray-800 text-base pt-2 border-t mt-1">
+          <span>TOTAL</span><span class="text-blue-700">${fmt(d.total_final)}</span>
+        </div>`;
+
+      // Notas
+      if (d.notas) {
+        document.getElementById('notasTexto').textContent = d.notas;
+        document.getElementById('notasCard').classList.remove('hidden');
+      }
+
+      // Mostrar / ocultar botones de acción
+      const puedeActuar = !d.expirado && !['aceptado','rechazado','anulado'].includes(d.estado);
+      document.getElementById('accionesCard').classList.toggle('hidden', !puedeActuar);
+      document.getElementById('confirmacionCard').classList.toggle('hidden', puedeActuar || ['borrador','enviado','visto'].includes(d.estado));
+
+      if (!puedeActuar && d.estado === 'aceptado') mostrarConfirmacion('aceptado');
+      if (!puedeActuar && d.estado === 'rechazado') mostrarConfirmacion('rechazado');
+    }
+
+    async function accion(tipo) {
+      const btnA = document.getElementById('btnAceptar');
+      const btnR = document.getElementById('btnRechazar');
+      const errEl = document.getElementById('accionError');
+      errEl.classList.add('hidden');
+      btnA.disabled = btnR.disabled = true;
+      btnA.textContent = tipo === 'aceptar' ? 'Procesando...' : '✓ Aceptar presupuesto';
+      btnR.textContent = tipo === 'rechazar' ? 'Procesando...' : '✕ Rechazar';
+
+      try {
+        const r = await fetch(`/api/presupuestos/cliente/${TOKEN}/accion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accion: tipo })
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || 'Error');
+        document.getElementById('accionesCard').classList.add('hidden');
+        mostrarConfirmacion(tipo === 'aceptar' ? 'aceptado' : 'rechazado');
+      } catch(err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+        btnA.disabled = btnR.disabled = false;
+        btnA.textContent = '✓ Aceptar presupuesto';
+        btnR.textContent = '✕ Rechazar';
+      }
+    }
+
+    function mostrarConfirmacion(estado) {
+      const card = document.getElementById('confirmacionCard');
+      document.getElementById('confirmIcon').textContent = estado === 'aceptado' ? '✅' : '❌';
+      document.getElementById('confirmTitulo').textContent =
+        estado === 'aceptado' ? '¡Presupuesto aceptado!' : 'Presupuesto rechazado';
+      document.getElementById('confirmMsg').textContent =
+        estado === 'aceptado'
+          ? 'Hemos registrado tu aceptación. Nos pondremos en contacto contigo pronto.'
+          : 'Hemos registrado tu decisión. Si tienes alguna duda, contacta con nosotros.';
+      card.classList.remove('hidden');
+    }
+
+    cargar();
+  </script>
+</body>
+</html>

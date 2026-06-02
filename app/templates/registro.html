@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Registrar empresa</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-blue-950 min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-lg">
+    <div class="text-center mb-8">
+      <span class="text-4xl font-bold text-blue-400">⚙ GestiónPro</span>
+      <p class="text-gray-400 mt-2 text-sm">Crea tu empresa y empieza gratis</p>
+    </div>
+    <div class="bg-white rounded-2xl shadow-xl p-8">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6">Nueva empresa</h2>
+      <div id="error" class="hidden mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm"></div>
+      <div id="success" class="hidden mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm"></div>
+      <form id="regForm" class="space-y-4">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Datos de la empresa</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre de la empresa *</label>
+            <input type="text" name="nombre" required
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email empresa *</label>
+            <input type="email" name="email" required
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">NIF / CIF</label>
+            <input type="text" name="nif"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+            <input type="tel" name="telefono"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+        </div>
+
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-2">Administrador de la cuenta</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tu nombre *</label>
+            <input type="text" name="admin_nombre" required
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tu email *</label>
+            <input type="email" name="admin_email" required
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Contraseña * (mín. 6 caracteres)</label>
+            <input type="password" name="admin_password" required minlength="6"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"/>
+          </div>
+        </div>
+
+        <button type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition mt-2">
+          Crear empresa
+        </button>
+      </form>
+      <p class="mt-5 text-center text-sm text-gray-500">
+        ¿Ya tienes cuenta? <a href="/login" class="text-blue-600 hover:underline font-medium">Iniciar sesión</a>
+      </p>
+    </div>
+  </div>
+  <script>
+    document.getElementById('regForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = e.target;
+      const errEl = document.getElementById('error');
+      const okEl = document.getElementById('success');
+      errEl.classList.add('hidden');
+      okEl.classList.add('hidden');
+      const body = {
+        nombre: f.nombre.value, email: f.email.value,
+        nif: f.nif.value || null, telefono: f.telefono.value || null,
+        admin_nombre: f.admin_nombre.value,
+        admin_email: f.admin_email.value,
+        admin_password: f.admin_password.value,
+      };
+      try {
+        const r = await fetch('/auth/registro', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (!r.ok) {
+          const d = await r.json();
+          errEl.textContent = d.detail || 'Error al registrar';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        okEl.textContent = '¡Empresa creada! Redirigiendo al login...';
+        okEl.classList.remove('hidden');
+        setTimeout(() => window.location = '/login', 1800);
+      } catch {
+        errEl.textContent = 'Error de conexión';
+        errEl.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>

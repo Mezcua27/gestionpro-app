@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Gestión Empresarial{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body class="bg-gray-100 min-h-screen flex">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-gray-900 text-white flex flex-col transform -translate-x-full md:translate-x-0 transition-transform duration-200">
+    <div class="px-6 py-5 border-b border-gray-700">
+      <span class="text-xl font-bold text-blue-400">⚙ GestiónPro</span>
+      <p class="text-xs text-gray-400 mt-1 truncate">{{ user.empresa.nombre }}</p>
+    </div>
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <a href="/dashboard" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='dashboard' %}active{% endif %}">
+        📊 <span>Dashboard</span>
+      </a>
+      <a href="/catalogo" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='catalogo' %}active{% endif %}">
+        📦 <span>Catálogo</span>
+      </a>
+      <a href="/clientes" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='clientes' %}active{% endif %}">
+        👥 <span>Clientes</span>
+      </a>
+      <a href="/presupuestos" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='presupuestos' %}active{% endif %}">
+        📄 <span>Presupuestos</span>
+      </a>
+      {% if user.rol == 'admin' %}
+      <a href="/usuarios" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='usuarios' %}active{% endif %}">
+        🔑 <span>Usuarios</span>
+      </a>
+      {% endif %}
+    </nav>
+    <div class="px-4 py-4 border-t border-gray-700">
+      <p class="text-sm font-medium text-gray-200 truncate">{{ user.nombre }}</p>
+      <p class="text-xs text-gray-400 capitalize">{{ user.rol }}</p>
+      <button onclick="logout()" class="mt-2 w-full text-sm text-red-400 hover:text-red-300 text-left">
+        Cerrar sesión →
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile header -->
+  <div class="md:hidden fixed top-0 left-0 right-0 z-20 bg-gray-900 text-white flex items-center justify-between px-4 py-3">
+    <span class="font-bold text-blue-400">⚙ GestiónPro</span>
+    <button onclick="toggleSidebar()" class="text-gray-300 hover:text-white text-2xl">☰</button>
+  </div>
+
+  <!-- Main -->
+  <main class="flex-1 md:ml-64 pt-16 md:pt-0 min-h-screen">
+    <div class="p-4 md:p-8">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+  <!-- Toast notifications -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toast-inner" class="px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium"></div>
+  </div>
+
+  <script>
+    function toggleSidebar() {
+      const s = document.getElementById('sidebar');
+      s.classList.toggle('-translate-x-full');
+    }
+
+    function toast(msg, type = 'ok') {
+      const el = document.getElementById('toast');
+      const inner = document.getElementById('toast-inner');
+      inner.textContent = msg;
+      inner.className = 'px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium ' +
+        (type === 'ok' ? 'bg-green-600' : 'bg-red-600');
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 3000);
+    }
+
+    async function api(method, url, body) {
+      const opts = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+      if (body) opts.body = JSON.stringify(body);
+      const r = await fetch(url, opts);
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ detail: 'Error desconocido' }));
+        throw new Error(err.detail || 'Error');
+      }
+      return r.json();
+    }
+
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+      window.location = '/login';
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

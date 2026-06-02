@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% set active = "clientes" %}
+{% block title %}Clientes{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Clientes</h1>
+  <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    + Nuevo cliente
+  </button>
+</div>
+
+<input type="search" id="buscar" placeholder="Buscar cliente..." oninput="buscarCliente(this.value)"
+  class="mb-4 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 w-full max-w-xs"/>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b">
+      <tr class="text-left text-gray-400">
+        <th class="px-4 py-3 font-medium">Nombre</th>
+        <th class="px-4 py-3 font-medium hidden sm:table-cell">Email</th>
+        <th class="px-4 py-3 font-medium hidden md:table-cell">Teléfono</th>
+        <th class="px-4 py-3 font-medium hidden lg:table-cell">NIF</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody" class="divide-y divide-gray-50">
+      {% for c in clientes %}
+      <tr data-nombre="{{ c.nombre|lower }}" data-email="{{ (c.email or '')|lower }}" class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-medium text-gray-800">{{ c.nombre }}</td>
+        <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ c.email or '—' }}</td>
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ c.telefono or '—' }}</td>
+        <td class="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{{ c.nif or '—' }}</td>
+        <td class="px-4 py-3 text-right">
+          <button onclick='editCliente({{ c.id }}, {{ c|tojson }})' class="text-blue-500 hover:text-blue-700 mr-2">✏</button>
+          <button onclick="deleteCliente({{ c.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="px-4 py-10 text-center text-gray-400">Sin clientes. Añade el primero.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-4">Nuevo cliente</h3>
+    <form id="clienteForm" class="space-y-3">
+      <input type="hidden" id="cId"/>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+        <input type="text" id="cNombre" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" id="cEmail" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+          <input type="tel" id="cTel" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">NIF / CIF</label>
+          <input type="text" id="cNif" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+          <input type="text" id="cDir" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+        <textarea id="cNotas" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function buscarCliente(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#tbody tr[data-nombre]').forEach(tr => {
+      tr.style.display = (!q || tr.dataset.nombre.includes(q) || tr.dataset.email.includes(q)) ? '' : 'none';
+    });
+  }
+
+  function openModal(reset=true) {
+    if (reset) {
+      document.getElementById('modalTitle').textContent = 'Nuevo cliente';
+      document.getElementById('cId').value = '';
+      ['cNombre','cEmail','cTel','cNif','cDir','cNotas'].forEach(id => document.getElementById(id).value = '');
+    }
+    document.getElementById('modal').classList.remove('hidden');
+  }
+
+  function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+  function editCliente(id, c) {
+    document.getElementById('modalTitle').textContent = 'Editar cliente';
+    document.getElementById('cId').value = id;
+    document.getElementById('cNombre').value = c.nombre || '';
+    document.getElementById('cEmail').value = c.email || '';
+    document.getElementById('cTel').value = c.telefono || '';
+    document.getElementById('cNif').value = c.nif || '';
+    document.getElementById('cDir').value = c.direccion || '';
+    document.getElementById('cNotas').value = c.notas || '';
+    openModal(false);
+  }
+
+  document.getElementById('clienteForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('cId').value;
+    const body = {
+      nombre: document.getElementById('cNombre').value,
+      email: document.getElementById('cEmail').value || null,
+      telefono: document.getElementById('cTel').value || null,
+      nif: document.getElementById('cNif').value || null,
+      direccion: document.getElementById('cDir').value || null,
+      notas: document.getElementById('cNotas').value || null,
+    };
+    try {
+      await api(id ? 'PUT' : 'POST', id ? `/api/clientes/${id}` : '/api/clientes/', body);
+      toast(id ? 'Cliente actualizado' : 'Cliente creado');
+      setTimeout(() => location.reload(), 800);
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function deleteCliente(id, btn) {
+    if (!confirm('¿Eliminar este cliente?')) return;
+    try {
+      await api('DELETE', `/api/clientes/${id}`);
+      btn.closest('tr').remove();
+      toast('Cliente eliminado');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+</script>
+{% endblock %}

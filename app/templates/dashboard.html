@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Bienvenido, {{ user.nombre }}</h1>
+  <p class="text-gray-500 text-sm mt-1">{{ user.empresa.nombre }}</p>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+  <a href="/clientes" class="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition flex items-center gap-4">
+    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">👥</div>
+    <div>
+      <p class="text-2xl font-bold text-gray-800">{{ total_clientes }}</p>
+      <p class="text-sm text-gray-500">Clientes</p>
+    </div>
+  </a>
+  <a href="/catalogo" class="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition flex items-center gap-4">
+    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">📦</div>
+    <div>
+      <p class="text-2xl font-bold text-gray-800">{{ total_catalogo }}</p>
+      <p class="text-sm text-gray-500">Ítems en catálogo</p>
+    </div>
+  </a>
+  <a href="/presupuestos" class="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition flex items-center gap-4">
+    <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-2xl">📄</div>
+    <div>
+      <p class="text-2xl font-bold text-gray-800">{{ total_presupuestos }}</p>
+      <p class="text-sm text-gray-500">Presupuestos</p>
+    </div>
+  </a>
+</div>
+
+<!-- Últimos presupuestos -->
+<div class="bg-white rounded-xl shadow-sm p-6">
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="font-semibold text-gray-700">Últimos presupuestos</h2>
+    <a href="/presupuestos" class="text-sm text-blue-600 hover:underline">Ver todos →</a>
+  </div>
+  {% if recientes %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-gray-400 border-b">
+          <th class="pb-2 font-medium">Número</th>
+          <th class="pb-2 font-medium">Título</th>
+          <th class="pb-2 font-medium">Cliente</th>
+          <th class="pb-2 font-medium">Estado</th>
+          <th class="pb-2 font-medium">Fecha</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for p in recientes %}
+        <tr class="hover:bg-gray-50">
+          <td class="py-3 font-mono text-xs text-gray-500">{{ p.numero }}</td>
+          <td class="py-3">
+            <a href="/presupuestos/{{ p.id }}" class="text-blue-600 hover:underline font-medium">{{ p.titulo }}</a>
+          </td>
+          <td class="py-3 text-gray-600">{{ p.cliente.nombre if p.cliente else '—' }}</td>
+          <td class="py-3">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium badge-{{ p.estado }}">{{ p.estado }}</span>
+          </td>
+          <td class="py-3 text-gray-400">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-gray-400 text-sm text-center py-8">Aún no hay presupuestos. <a href="/presupuestos" class="text-blue-600 hover:underline">Crear uno</a></p>
+  {% endif %}
+</div>
+{% endblock %}

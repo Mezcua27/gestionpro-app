@@ -1,0 +1,31 @@
+# Entorno
+.env
+.env.local
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Base de datos local
+*.db
+*.sqlite3
+
+# Uploads locales (en producción se usan URLs externas)
+app/static/uploads/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Tests
+.pytest_cache/
+htmlcov/
+
+# Build
+dist/
+build/
+*.egg-info/

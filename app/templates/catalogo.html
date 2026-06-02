@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% set active = "catalogo" %}
+{% block title %}Catálogo{% endblock %}
+
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Catálogo</h1>
+  <div class="flex gap-2 flex-wrap">
+    <a href="/api/catalogo/plantilla-excel"
+      class="border border-green-600 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+      📥 Plantilla Excel
+    </a>
+    <label class="cursor-pointer border border-blue-500 text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+      📊 Importar Excel
+      <input type="file" id="excelInput" accept=".xlsx,.xls" class="hidden" onchange="importarExcel(this)"/>
+    </label>
+    <button onclick="openModal()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      + Nuevo ítem
+    </button>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="flex gap-2 mb-4 flex-wrap items-center">
+  <button onclick="filtrar('todos')" id="f-todos" class="filter-btn active px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Todos</button>
+  <button onclick="filtrar('Material')" id="f-Material" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Material</button>
+  <button onclick="filtrar('Mano de Obra')" id="f-MO" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Mano de Obra</button>
+  <button onclick="filtrar('Varios')" id="f-Varios" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Varios</button>
+  <input type="search" id="buscar" placeholder="Buscar..." oninput="aplicarFiltros()"
+    class="ml-auto border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 w-48"/>
+  <!-- Toggle vista -->
+  <div class="flex border border-gray-300 rounded-lg overflow-hidden">
+    <button onclick="setVista('tabla')" id="btn-tabla" class="px-3 py-1.5 text-sm bg-blue-600 text-white">☰</button>
+    <button onclick="setVista('tarjetas')" id="btn-tarjetas" class="px-3 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-50">⊞</button>
+  </div>
+</div>
+
+<!-- Vista TABLA -->
+<div id="vistaTabla" class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm" id="tabla">
+    <thead class="bg-gray-50 border-b">
+      <tr class="text-left text-gray-400">
+        <th class="px-4 py-3 font-medium w-16">Foto</th>
+        <th class="px-4 py-3 font-medium">Tipo</th>
+        <th class="px-4 py-3 font-medium">Descripción</th>
+        <th class="px-4 py-3 font-medium">Referencia</th>
+        <th class="px-4 py-3 font-medium text-right">Precio</th>
+        <th class="px-4 py-3 font-medium">Unidad</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody" class="divide-y divide-gray-50">
+      {% for item in items %}
+      <tr data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-id="{{ item.id }}" class="hover:bg-gray-50 item-row">
+        <td class="px-4 py-2">
+          {% if item.foto %}
+          <img src="/static/uploads/catalogo/{{ item.foto }}" alt="" onclick="verFoto('/static/uploads/catalogo/{{ item.foto }}')"
+            class="w-10 h-10 object-cover rounded-lg cursor-pointer border border-gray-200 hover:scale-110 transition"/>
+          {% else %}
+          <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center text-gray-300 text-lg cursor-pointer hover:bg-gray-200 transition"
+            onclick="openFotoModal({{ item.id }})">📷</div>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium
+            {% if item.tipo == 'Material' %}tipo-Material
+            {% elif item.tipo == 'Mano de Obra' %}tipo-MO
+            {% else %}tipo-Varios{% endif %}">{{ item.tipo }}</span>
+        </td>
+        <td class="px-4 py-3 font-medium text-gray-800">{{ item.descripcion }}</td>
+        <td class="px-4 py-3 text-gray-400 font-mono text-xs">{{ item.referencia or '—' }}</td>
+        <td class="px-4 py-3 text-right font-semibold text-gray-700">{{ "%.2f"|format(item.precio_unitario) }} €</td>
+        <td class="px-4 py-3 text-gray-500">{{ item.unidad }}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button onclick="openFotoModal({{ item.id }})" class="text-gray-400 hover:text-blue-500 mr-1" title="Cambiar foto">📷</button>
+          <button onclick='editItem({{ item.id }}, {{ item|tojson }})' class="text-blue-500 hover:text-blue-700 mr-1">✏</button>
+          <button onclick="deleteItem({{ item.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">Sin ítems. Añade uno o importa desde Excel.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Vista TARJETAS -->
+<div id="vistaTarjetas" class="hidden">
+  <div id="gridTarjetas" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    {% for item in items %}
+    <div data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-id="{{ item.id }}"
+      class="bg-white rounded-xl shadow-sm overflow-hidden group item-card">
+      <!-- Imagen -->
+      <div class="aspect-square bg-gray-100 relative overflow-hidden">
+        {% if item.foto %}
+        <img src="/static/uploads/catalogo/{{ item.foto }}" alt="{{ item.descripcion }}"
+          class="w-full h-full object-cover group-hover:scale-105 transition duration-200 cursor-pointer"
+          onclick="verFoto('/static/uploads/catalogo/{{ item.foto }}')"/>
+        {% else %}
+        <div class="w-full h-full flex flex-col items-center justify-center text-gray-300 cursor-pointer hover:bg-gray-200 transition"
+          onclick="openFotoModal({{ item.id }})">
+          <span class="text-4xl">📷</span>
+          <span class="text-xs mt-1">Añadir foto</span>
+        </div>
+        {% endif %}
+        <!-- Badge tipo -->
+        <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-medium
+          {% if item.tipo == 'Material' %}tipo-Material
+          {% elif item.tipo == 'Mano de Obra' %}tipo-MO
+          {% else %}tipo-Varios{% endif %}">{{ item.tipo }}</span>
+        <!-- Acciones hover -->
+        <div class="absolute top-2 right-2 hidden group-hover:flex gap-1">
+          <button onclick="openFotoModal({{ item.id }})" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Foto">📷</button>
+          <button onclick='editItem({{ item.id }}, {{ item|tojson }})' class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Editar">✏</button>
+          <button onclick="deleteItem({{ item.id }}, this)" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow text-red-500" title="Eliminar">✕</button>
+        </div>
+      </div>
+      <!-- Info -->
+      <div class="p-3">
+        <p class="text-sm font-medium text-gray-800 truncate" title="{{ item.descripcion }}">{{ item.descripcion }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">{{ item.referencia or '' }}</p>
+        <p class="text-sm font-bold text-blue-700 mt-1">{{ "%.2f"|format(item.precio_unitario) }} € / {{ item.unidad }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not items %}
+  <div class="text-center text-gray-400 py-16">Sin ítems. Añade uno o importa desde Excel.</div>
+  {% endif %}
+</div>
+
+<!-- Modal crear/editar ítem -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 id="modalTitle" class="text-lg font-bold text-gray-800 mb-4">Nuevo ítem</h3>
+    <form id="itemForm" class="space-y-3">
+      <input type="hidden" id="itemId"/>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
+        <select id="iTipo" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+          <option>Material</option><option>Mano de Obra</option><option>Varios</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+        <input type="text" id="iDesc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Precio unitario (€)</label>
+          <input type="number" id="iPrecio" step="0.01" min="0" value="0" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+          <input type="text" id="iUnidad" value="ud" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label>
+        <input type="text" id="iRef" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal subir foto -->
+<div id="fotoModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Foto del producto</h3>
+    <input type="hidden" id="fotoItemId"/>
+    <!-- Preview -->
+    <div id="fotoPreviewWrap" class="mb-4 hidden">
+      <img id="fotoPreview" src="" alt="" class="w-full h-48 object-cover rounded-xl border border-gray-200"/>
+    </div>
+    <label class="block w-full cursor-pointer border-2 border-dashed border-gray-300 hover:border-blue-400 rounded-xl p-6 text-center transition">
+      <span class="text-3xl block mb-2">📁</span>
+      <span class="text-sm text-gray-500">Haz clic para seleccionar imagen<br/><span class="text-xs text-gray-400">JPG, PNG o WebP · máx 5 MB</span></span>
+      <input type="file" id="fotoFileInput" accept="image/*" class="hidden" onchange="previewFoto(this)"/>
+    </label>
+    <div id="fotoError" class="hidden mt-2 text-sm text-red-600"></div>
+    <div class="flex gap-3 mt-4">
+      <button type="button" onclick="closeFotoModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+      <button type="button" onclick="subirFoto()" id="fotoBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Subir foto</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox foto -->
+<div id="lightbox" class="fixed inset-0 z-[100] hidden bg-black/80 flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
+  <img id="lightboxImg" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl"/>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let tipoActivo = 'todos';
+  let vistaActual = 'tabla';
+
+  // ── Vista ────────────────────────────────────────────────────────────────
+
+  function setVista(v) {
+    vistaActual = v;
+    document.getElementById('vistaTabla').classList.toggle('hidden', v !== 'tabla');
+    document.getElementById('vistaTarjetas').classList.toggle('hidden', v !== 'tarjetas');
+    document.getElementById('btn-tabla').className = v === 'tabla'
+      ? 'px-3 py-1.5 text-sm bg-blue-600 text-white'
+      : 'px-3 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-50';
+    document.getElementById('btn-tarjetas').className = v === 'tarjetas'
+      ? 'px-3 py-1.5 text-sm bg-blue-600 text-white'
+      : 'px-3 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-50';
+  }
+
+  // ── Filtros ──────────────────────────────────────────────────────────────
+
+  function filtrar(tipo) {
+    tipoActivo = tipo;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active', 'bg-blue-600', 'text-white'));
+    const id = tipo === 'todos' ? 'f-todos' : tipo === 'Mano de Obra' ? 'f-MO' : 'f-' + tipo;
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.add('active', 'bg-blue-600', 'text-white');
+    aplicarFiltros();
+  }
+
+  function aplicarFiltros() {
+    const q = document.getElementById('buscar').value.toLowerCase();
+    document.querySelectorAll('.item-row, .item-card').forEach(el => {
+      const matchTipo = tipoActivo === 'todos' || el.dataset.tipo === tipoActivo;
+      const matchQ = !q || el.dataset.desc.includes(q) || el.innerText.toLowerCase().includes(q);
+      el.style.display = matchTipo && matchQ ? '' : 'none';
+    });
+  }
+
+  // ── Modal ítem ───────────────────────────────────────────────────────────
+
+  function openModal(reset = true) {
+    if (reset) {
+      document.getElementById('modalTitle').textContent = 'Nuevo ítem';
+      document.getElementById('itemId').value = '';
+      document.getElementById('iTipo').value = 'Material';
+      document.getElementById('iDesc').value = '';
+      document.getElementById('iPrecio').value = '0';
+      document.getElementById('iUnidad').value = 'ud';
+      document.getElementById('iRef').value = '';
+    }
+    document.getElementById('modal').classList.remove('hidden');
+  }
+
+  function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+  function editItem(id, item) {
+    document.getElementById('modalTitle').textContent = 'Editar ítem';
+    document.getElementById('itemId').value = id;
+    document.getElementById('iTipo').value = item.tipo;
+    document.getElementById('iDesc').value = item.descripcion;
+    document.getElementById('iPrecio').value = item.precio_unitario;
+    document.getElementById('iUnidad').value = item.unidad;
+    document.getElementById('iRef').value = item.referencia || '';
+    openModal(false);
+  }
+
+  document.getElementById('itemForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id = document.getElementById('itemId').value;
+    const body = {
+      tipo: document.getElementById('iTipo').value,
+      descripcion: document.getElementById('iDesc').value,
+      precio_unitario: parseFloat(document.getElementById('iPrecio').value) || 0,
+      unidad: document.getElementById('iUnidad').value || 'ud',
+      referencia: document.getElementById('iRef').value || null,
+    };
+    try {
+      await api(id ? 'PUT' : 'POST', id ? `/api/catalogo/${id}` : '/api/catalogo/', body);
+      toast(id ? 'Ítem actualizado' : 'Ítem creado');
+      setTimeout(() => location.reload(), 800);
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function deleteItem(id, btn) {
+    if (!confirm('¿Eliminar este ítem?')) return;
+    try {
+      await api('DELETE', `/api/catalogo/${id}`);
+      const row = btn.closest('[data-id]');
+      if (row) row.remove();
+      toast('Ítem eliminado');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+
+  // ── Modal foto ───────────────────────────────────────────────────────────
+
+  function openFotoModal(itemId) {
+    document.getElementById('fotoItemId').value = itemId;
+    document.getElementById('fotoFileInput').value = '';
+    document.getElementById('fotoPreviewWrap').classList.add('hidden');
+    document.getElementById('fotoError').classList.add('hidden');
+    document.getElementById('fotoModal').classList.remove('hidden');
+  }
+
+  function closeFotoModal() { document.getElementById('fotoModal').classList.add('hidden'); }
+
+  function previewFoto(input) {
+    if (!input.files[0]) return;
+    const wrap = document.getElementById('fotoPreviewWrap');
+    const img = document.getElementById('fotoPreview');
+    img.src = URL.createObjectURL(input.files[0]);
+    wrap.classList.remove('hidden');
+  }
+
+  async function subirFoto() {
+    const id = document.getElementById('fotoItemId').value;
+    const file = document.getElementById('fotoFileInput').files[0];
+    const errEl = document.getElementById('fotoError');
+    errEl.classList.add('hidden');
+
+    if (!file) { errEl.textContent = 'Selecciona una imagen primero.'; errEl.classList.remove('hidden'); return; }
+
+    const fd = new FormData();
+    fd.append('foto', file);
+
+    const btn = document.getElementById('fotoBtn');
+    btn.textContent = 'Subiendo...';
+    btn.disabled = true;
+
+    try {
+      const r = await fetch(`/api/catalogo/${id}/foto`, {
+        method: 'POST', credentials: 'include', body: fd
+      });
+      if (!r.ok) {
+        const d = await r.json();
+        throw new Error(d.detail || 'Error al subir');
+      }
+      const data = await r.json();
+      // Actualizar imágenes en la página sin recargar
+      document.querySelectorAll(`[data-id="${id}"]`).forEach(el => {
+        const imgs = el.querySelectorAll('img');
+        if (imgs.length) {
+          imgs[0].src = data.foto + '?t=' + Date.now();
+        } else {
+          // Reemplazar placeholder
+          const ph = el.querySelector('.text-gray-300, .text-4xl');
+          if (ph) {
+            const wrap = ph.closest('div');
+            if (wrap) {
+              wrap.innerHTML = `<img src="${data.foto}" class="w-full h-full object-cover" onclick="verFoto('${data.foto}')"/>`;
+            }
+          }
+        }
+      });
+      closeFotoModal();
+      toast('Foto actualizada');
+    } catch(err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.textContent = 'Subir foto';
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById('fotoModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('fotoModal')) closeFotoModal();
+  });
+
+  // ── Lightbox ─────────────────────────────────────────────────────────────
+
+  function verFoto(src) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.remove('hidden');
+  }
+
+  // ── Importar Excel ───────────────────────────────────────────────────────
+
+  async function importarExcel(input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('archivo', input.files[0]);
+    input.value = '';
+
+    toast('Importando...', 'ok');
+    try {
+      const r = await fetch('/api/catalogo/importar-excel', {
+        method: 'POST', credentials: 'include', body: fd
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Error al importar');
+
+      let msg = data.mensaje;
+      if (data.errores && data.errores.length) {
+        console.warn('Errores de importación:', data.errores);
+      }
+      toast(msg);
+      if (data.importados > 0) setTimeout(() => location.reload(), 1200);
+    } catch(err) { toast(err.message, 'err'); }
+  }
+</script>
+{% endblock %}

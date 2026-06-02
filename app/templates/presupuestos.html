@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% set active = "presupuestos" %}
+{% block title %}Presupuestos{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-bold text-gray-800">Presupuestos</h1>
+  <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    + Nuevo presupuesto
+  </button>
+</div>
+
+<!-- Filtros estado -->
+<div class="flex gap-2 mb-4 flex-wrap">
+  {% for estado in ['todos','borrador','enviado','aceptado','rechazado'] %}
+  <button onclick="filtrarEstado('{{ estado }}')" id="fe-{{ estado }}"
+    class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50 capitalize
+      {% if estado=='todos' %}bg-blue-600 text-white border-blue-600{% endif %}">
+    {{ estado }}
+  </button>
+  {% endfor %}
+</div>
+
+<div class="bg-white rounded-xl shadow-sm overflow-hidden">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b">
+      <tr class="text-left text-gray-400">
+        <th class="px-4 py-3 font-medium">Número</th>
+        <th class="px-4 py-3 font-medium">Título</th>
+        <th class="px-4 py-3 font-medium hidden sm:table-cell">Cliente</th>
+        <th class="px-4 py-3 font-medium hidden md:table-cell">Importe</th>
+        <th class="px-4 py-3 font-medium">Estado</th>
+        <th class="px-4 py-3 font-medium hidden lg:table-cell">Fecha</th>
+        <th class="px-4 py-3"></th>
+      </tr>
+    </thead>
+    <tbody id="tbody" class="divide-y divide-gray-50">
+      {% for p in presupuestos %}
+      {% set subtotal = p.lineas | sum(attribute='cantidad') %}
+      {% set base = namespace(v=0) %}
+      {% for l in p.lineas %}{% set base.v = base.v + l.cantidad * l.precio_unitario %}{% endfor %}
+      {% set total = base.v * (1 - p.descuento/100) * (1 + p.iva/100) %}
+      <tr data-estado="{{ p.estado }}" class="hover:bg-gray-50">
+        <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ p.numero }}</td>
+        <td class="px-4 py-3 font-medium">
+          <a href="/presupuestos/{{ p.id }}" class="text-blue-600 hover:underline">{{ p.titulo }}</a>
+        </td>
+        <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ p.cliente.nombre if p.cliente else '—' }}</td>
+        <td class="px-4 py-3 font-semibold hidden md:table-cell">{{ "%.2f"|format(total) }} €</td>
+        <td class="px-4 py-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium badge-{{ p.estado }}">{{ p.estado }}</span>
+        </td>
+        <td class="px-4 py-3 text-gray-400 hidden lg:table-cell">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
+        <td class="px-4 py-3 text-right">
+          <a href="/presupuestos/{{ p.id }}" class="text-blue-500 hover:text-blue-700 mr-2">✏</a>
+          <button onclick="deleteP({{ p.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">Sin presupuestos. Crea el primero.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Modal nuevo presupuesto -->
+<div id="modal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Nuevo presupuesto</h3>
+    <form id="pForm" class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+        <input type="text" id="pTitulo" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
+        <select id="pCliente" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="">Sin cliente</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Validez (días)</label>
+          <input type="number" id="pValidez" value="30" min="1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Desc. %</label>
+          <input type="number" id="pDesc" value="0" min="0" max="100" step="0.1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">IVA %</label>
+          <input type="number" id="pIva" value="21" min="0" step="0.1" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Notas</label>
+        <textarea id="pNotas" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Crear</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  let estadoActivo = 'todos';
+
+  function filtrarEstado(estado) {
+    estadoActivo = estado;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.remove('bg-blue-600','text-white','border-blue-600');
+      b.classList.add('bg-white');
+    });
+    const btn = document.getElementById('fe-' + estado);
+    btn.classList.add('bg-blue-600','text-white','border-blue-600');
+    btn.classList.remove('bg-white');
+    document.querySelectorAll('#tbody tr[data-estado]').forEach(tr => {
+      tr.style.display = (estado === 'todos' || tr.dataset.estado === estado) ? '' : 'none';
+    });
+  }
+
+  function openModal() { document.getElementById('modal').classList.remove('hidden'); }
+  function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+  document.getElementById('pForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const cId = document.getElementById('pCliente').value;
+    const body = {
+      titulo: document.getElementById('pTitulo').value,
+      cliente_id: cId ? parseInt(cId) : null,
+      validez_dias: parseInt(document.getElementById('pValidez').value) || 30,
+      descuento: parseFloat(document.getElementById('pDesc').value) || 0,
+      iva: parseFloat(document.getElementById('pIva').value) || 21,
+      notas: document.getElementById('pNotas').value || null,
+    };
+    try {
+      const p = await api('POST', '/api/presupuestos/', body);
+      toast('Presupuesto creado');
+      setTimeout(() => window.location = `/presupuestos/${p.id}`, 600);
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function deleteP(id, btn) {
+    if (!confirm('¿Eliminar este presupuesto y todas sus líneas?')) return;
+    try {
+      await api('DELETE', `/api/presupuestos/${id}`);
+      btn.closest('tr').remove();
+      toast('Presupuesto eliminado');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+</script>
+{% endblock %}
