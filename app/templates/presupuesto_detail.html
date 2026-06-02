@@ -274,34 +274,97 @@
 
 <!-- Modal añadir línea -->
 <div id="lineaModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
-    <h3 class="text-lg font-bold text-gray-800 mb-4">Añadir línea</h3>
-    <form id="lineaForm" class="space-y-3">
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-        <select id="lTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
-          <option>Material</option><option>Mano de Obra</option><option>Varios</option>
-        </select>
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+
+    <!-- Cabecera -->
+    <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
+      <h3 class="text-lg font-bold text-gray-800">Añadir línea</h3>
+      <button onclick="closeLineaModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex border-b shrink-0">
+      <button onclick="lineaTab('catalogo')" id="tab-catalogo"
+        class="flex-1 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+        📦 Del catálogo
+      </button>
+      <button onclick="lineaTab('manual')" id="tab-manual"
+        class="flex-1 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700">
+        ✏ Manual
+      </button>
+    </div>
+
+    <!-- TAB: Catálogo -->
+    <div id="pane-catalogo" class="flex flex-col flex-1 min-h-0 p-4">
+      <!-- Buscador -->
+      <input type="search" id="catalogoBuscar" placeholder="Buscar producto, marca o referencia..."
+        oninput="filtrarCatalogo(this.value)"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 mb-3"/>
+
+      <!-- Lista de productos -->
+      <div id="catalogoLista" class="overflow-y-auto flex-1 space-y-1.5 min-h-0 max-h-64">
+        <p class="text-sm text-gray-400 text-center py-6">Cargando catálogo...</p>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
-        <input type="text" id="lDesc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+
+      <!-- Cantidad + botón añadir (aparece al seleccionar) -->
+      <div id="catalogoSeleccion" class="hidden mt-3 pt-3 border-t">
+        <div class="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3 mb-3">
+          <span id="selTipoTag" class="px-2 py-0.5 rounded-full text-xs font-medium shrink-0"></span>
+          <div class="flex-1 min-w-0">
+            <p id="selNombre" class="text-sm font-semibold text-gray-800 truncate"></p>
+            <p id="selMarca" class="text-xs text-gray-400"></p>
+          </div>
+          <span id="selPrecio" class="text-sm font-bold text-blue-700 shrink-0"></span>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
+            <input type="number" id="selCantidad" value="1" min="0.01" step="0.01"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-gray-600 mb-1">Precio unit. €</label>
+            <input type="number" id="selPrecioEdit" min="0" step="0.01"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+          </div>
+          <button onclick="añadirDesdesCatalogo()"
+            class="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shrink-0">
+            Añadir
+          </button>
+        </div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+    </div>
+
+    <!-- TAB: Manual -->
+    <div id="pane-manual" class="hidden p-4">
+      <form id="lineaForm" class="space-y-3">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
-          <input type="number" id="lCant" value="1" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+          <select id="lTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400">
+            <option>Material</option><option>Mano de Obra</option><option>Varios</option>
+          </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Precio unit. €</label>
-          <input type="number" id="lPrecio" value="0" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+          <input type="text" id="lDesc" required class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
         </div>
-      </div>
-      <div class="flex gap-3 pt-1">
-        <button type="button" onclick="closeLineaModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
-        <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Añadir</button>
-      </div>
-    </form>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+            <input type="number" id="lCant" value="1" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Precio unit. €</label>
+            <input type="number" id="lPrecio" value="0" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" onclick="closeLineaModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+          <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Añadir</button>
+        </div>
+      </form>
+    </div>
+
   </div>
 </div>
 {% endblock %}
@@ -464,9 +527,131 @@
     } catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Añadir línea ──────────────────────────────────────────────────────────
-  function openLineaModal()  { document.getElementById('lineaModal').classList.remove('hidden'); }
-  function closeLineaModal() { document.getElementById('lineaModal').classList.add('hidden'); }
+  // ── Modal línea: catálogo + manual ────────────────────────────────────────
+  let catalogoItems = null;
+  let itemSeleccionado = null;
+
+  function openLineaModal() {
+    document.getElementById('lineaModal').classList.remove('hidden');
+    lineaTab('catalogo');
+    if (!catalogoItems) cargarCatalogo();
+  }
+  function closeLineaModal() {
+    document.getElementById('lineaModal').classList.add('hidden');
+    itemSeleccionado = null;
+    document.getElementById('catalogoSeleccion').classList.add('hidden');
+    document.getElementById('catalogoBuscar').value = '';
+  }
+
+  function lineaTab(t) {
+    document.getElementById('pane-catalogo').classList.toggle('hidden', t !== 'catalogo');
+    document.getElementById('pane-manual').classList.toggle('hidden', t !== 'manual');
+    document.getElementById('tab-catalogo').className = t === 'catalogo'
+      ? 'flex-1 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600'
+      : 'flex-1 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700';
+    document.getElementById('tab-manual').className = t === 'manual'
+      ? 'flex-1 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600'
+      : 'flex-1 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700';
+  }
+
+  async function cargarCatalogo() {
+    try {
+      catalogoItems = await api('GET', '/api/catalogo/');
+      renderCatalogo(catalogoItems);
+    } catch(e) {
+      document.getElementById('catalogoLista').innerHTML =
+        '<p class="text-sm text-red-400 text-center py-4">Error cargando catálogo</p>';
+    }
+  }
+
+  function renderCatalogo(items) {
+    const lista = document.getElementById('catalogoLista');
+    if (!items.length) {
+      lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">El catálogo está vacío</p>';
+      return;
+    }
+    lista.innerHTML = items.map(item => {
+      const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+      const marca = item.marca ? `<span class="text-gray-400"> · ${item.marca}</span>` : '';
+      return `
+        <div onclick="seleccionarItem(${item.id})" id="cat-item-${item.id}"
+          class="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition">
+          ${item.foto
+            ? `<img src="/static/uploads/catalogo/${item.foto}" class="w-10 h-10 object-cover rounded-lg shrink-0 border border-gray-100"/>`
+            : `<div class="w-10 h-10 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-300 text-lg">📦</div>`}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-800 truncate">${item.descripcion}${marca}</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${item.tipo}</span>
+              <span class="text-xs text-gray-400">${item.referencia || ''}</span>
+            </div>
+          </div>
+          <span class="text-sm font-bold text-blue-700 shrink-0">${parseFloat(item.precio_unitario).toFixed(2)} €<span class="text-xs font-normal text-gray-400">/${item.unidad}</span></span>
+        </div>`;
+    }).join('');
+  }
+
+  function filtrarCatalogo(q) {
+    if (!catalogoItems) return;
+    const lower = q.toLowerCase();
+    const filtrados = !lower ? catalogoItems : catalogoItems.filter(i =>
+      i.descripcion.toLowerCase().includes(lower) ||
+      (i.marca || '').toLowerCase().includes(lower) ||
+      (i.referencia || '').toLowerCase().includes(lower) ||
+      i.tipo.toLowerCase().includes(lower)
+    );
+    renderCatalogo(filtrados);
+    // Mantener selección si sigue visible
+    if (itemSeleccionado) {
+      const el = document.getElementById(`cat-item-${itemSeleccionado.id}`);
+      if (el) el.classList.add('border-blue-400', 'bg-blue-50');
+    }
+  }
+
+  function seleccionarItem(id) {
+    if (!catalogoItems) return;
+    const item = catalogoItems.find(i => i.id === id);
+    if (!item) return;
+    itemSeleccionado = item;
+
+    // Quitar selección anterior
+    document.querySelectorAll('[id^="cat-item-"]').forEach(el =>
+      el.classList.remove('border-blue-400', 'bg-blue-100', 'ring-2', 'ring-blue-300'));
+    // Marcar seleccionado
+    const el = document.getElementById(`cat-item-${id}`);
+    if (el) el.classList.add('border-blue-400', 'bg-blue-100', 'ring-2', 'ring-blue-300');
+
+    // Rellenar panel inferior
+    const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+    document.getElementById('selTipoTag').className = `px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${tc}`;
+    document.getElementById('selTipoTag').textContent = item.tipo;
+    document.getElementById('selNombre').textContent = item.descripcion;
+    document.getElementById('selMarca').textContent = item.marca || '';
+    document.getElementById('selPrecio').textContent = parseFloat(item.precio_unitario).toFixed(2) + ' €/' + item.unidad;
+    document.getElementById('selCantidad').value = 1;
+    document.getElementById('selPrecioEdit').value = item.precio_unitario;
+    document.getElementById('catalogoSeleccion').classList.remove('hidden');
+  }
+
+  async function añadirDesdesCatalogo() {
+    if (!itemSeleccionado) return;
+    const cantidad = parseFloat(document.getElementById('selCantidad').value) || 1;
+    const precio   = parseFloat(document.getElementById('selPrecioEdit').value) || 0;
+    const body = {
+      tipo: itemSeleccionado.tipo,
+      descripcion: itemSeleccionado.descripcion,
+      cantidad,
+      precio_unitario: precio,
+      orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length,
+    };
+    try {
+      const linea = await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas`, body);
+      agregarFilaLinea(linea);
+      recalcularTotales();
+      closeLineaModal();
+      toast('Línea añadida');
+    } catch(err) { toast(err.message, 'err'); }
+  }
 
   document.getElementById('lineaForm').addEventListener('submit', async e => {
     e.preventDefault();
