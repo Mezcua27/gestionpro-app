@@ -74,6 +74,11 @@ def _user_or_redirect(request: Request, db: Session):
         return None
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     token = request.cookies.get("access_token")
