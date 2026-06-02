@@ -3,7 +3,8 @@
     "allow": [
       "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\routers\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\templates\")",
-      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\static\")"
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\static\")",
+      "PowerShell(npm install -g @railway/cli 2>&1)"
     ]
   }
 }

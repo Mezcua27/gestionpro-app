@@ -43,9 +43,12 @@ def login(data: schemas.LoginForm, response: Response, db: Session = Depends(get
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
     token = create_token({"sub": str(user.id), "empresa_id": user.empresa_id})
+    import os
+    es_produccion = not os.getenv("DATABASE_URL", "sqlite").startswith("sqlite")
     response.set_cookie(
         key="access_token", value=token,
-        httponly=True, max_age=7 * 24 * 3600, samesite="lax"
+        httponly=True, max_age=7 * 24 * 3600,
+        samesite="lax", secure=es_produccion
     )
     return {"ok": True, "nombre": user.nombre, "rol": user.rol}
 

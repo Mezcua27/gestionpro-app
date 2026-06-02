@@ -189,77 +189,108 @@ async def importar_excel(request: Request, archivo: UploadFile = File(...), db: 
         import openpyxl
         from io import BytesIO
     except ImportError:
-        raise HTTPException(status_code=500, detail="openpyxl no instalado.")
+        raise HTTPException(status_code=500, detail="openpyxl no instalado en el servidor.")
 
     user = get_current_user(request, db)
 
-    if not archivo.filename.endswith((".xlsx", ".xls")):
+    if not archivo.filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Solo se aceptan archivos .xlsx")
 
-    contenido = await archivo.read()
+    try:
+        contenido = await archivo.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error leyendo el archivo: {e}")
+
     try:
         wb = openpyxl.load_workbook(BytesIO(contenido), data_only=True)
-    except Exception:
-        raise HTTPException(status_code=400, detail="No se pudo leer el archivo Excel.")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo abrir el Excel: {e}")
 
-    ws = wb.active
-    rows = list(ws.iter_rows(values_only=True))
+    try:
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error leyendo las filas: {e}")
+
     if not rows:
         raise HTTPException(status_code=400, detail="El archivo está vacío.")
 
-    # Detectar cabecera
+    # Detectar cabecera — admite con o sin acentos
     header_row = [str(c).strip().lower() if c else "" for c in rows[0]]
+
+    # Normalizar nombres de columna (quitar acentos para mayor compatibilidad)
+    def norm(s):
+        import unicodedata
+        return ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
+
+    header_norm = [norm(h) for h in header_row]
+
     required = {"tipo", "descripcion", "precio_unitario"}
-    if not required.issubset(set(header_row)):
+    if not required.issubset(set(header_norm)):
         raise HTTPException(
             status_code=400,
-            detail=f"Faltan columnas requeridas. Necesarias: {', '.join(required)}. "
+            detail=f"Faltan columnas. Necesarias: {', '.join(required)}. "
+                   f"Columnas encontradas: {', '.join(h for h in header_norm if h)}. "
                    f"Descarga la plantilla para ver el formato correcto."
         )
 
-    col = {name: i for i, name in enumerate(header_row)}
+    col = {name: i for i, name in enumerate(header_norm)}
     tipos_validos = {"Material", "Mano de Obra", "Varios"}
-
     importados = 0
     errores = []
 
-    for fila_num, row in enumerate(rows[1:], start=2):
-        if not any(row):
-            continue
+    try:
+        for fila_num, row in enumerate(rows[1:], start=2):
+            if not any(row):
+                continue
 
-        tipo = str(row[col["tipo"]]).strip() if row[col["tipo"]] else ""
-        descripcion = str(row[col["descripcion"]]).strip() if row[col["descripcion"]] else ""
+            tipo_raw = row[col["tipo"]]
+            desc_raw = row[col["descripcion"]]
+            tipo = str(tipo_raw).strip() if tipo_raw else ""
+            descripcion = str(desc_raw).strip() if desc_raw else ""
 
-        if tipo not in tipos_validos:
-            errores.append(f"Fila {fila_num}: tipo '{tipo}' no válido (usa Material, Mano de Obra o Varios).")
-            continue
-        if not descripcion:
-            errores.append(f"Fila {fila_num}: descripción vacía.")
-            continue
+            if tipo not in tipos_validos:
+                errores.append(f"Fila {fila_num}: tipo '{tipo}' no válido.")
+                continue
+            if not descripcion:
+                errores.append(f"Fila {fila_num}: descripción vacía.")
+                continue
 
-        try:
-            precio = float(row[col["precio_unitario"]] or 0)
-        except (ValueError, TypeError):
-            precio = 0.0
+            try:
+                precio_raw = row[col["precio_unitario"]]
+                precio = float(precio_raw) if precio_raw is not None else 0.0
+            except (ValueError, TypeError):
+                precio = 0.0
 
-        unidad = str(row[col.get("unidad", -1)]).strip() if "unidad" in col and row[col["unidad"]] else "ud"
-        referencia = str(row[col.get("referencia", -1)]).strip() if "referencia" in col and row[col.get("referencia")] else None
-        if referencia == "None" or referencia == "":
+            unidad = "ud"
+            if "unidad" in col:
+                val = row[col["unidad"]]
+                if val:
+                    unidad = str(val).strip() or "ud"
+
             referencia = None
+            if "referencia" in col:
+                val = row[col["referencia"]]
+                if val and str(val).strip() not in ("", "None"):
+                    referencia = str(val).strip()
 
-        item = models.CatalogoItem(
-            empresa_id=user.empresa_id,
-            tipo=tipo,
-            descripcion=descripcion,
-            precio_unitario=precio,
-            unidad=unidad or "ud",
-            referencia=referencia,
-        )
-        db.add(item)
-        importados += 1
+            item = models.CatalogoItem(
+                empresa_id=user.empresa_id,
+                tipo=tipo,
+                descripcion=descripcion,
+                precio_unitario=precio,
+                unidad=unidad,
+                referencia=referencia,
+            )
+            db.add(item)
+            importados += 1
 
-    if importados:
-        db.commit()
+        if importados:
+            db.commit()
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al guardar en base de datos: {str(e)}")
 
     return {
         "ok": True,
