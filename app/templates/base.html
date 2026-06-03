@@ -32,6 +32,9 @@
       <a href="/usuarios" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='usuarios' %}active{% endif %}">
         🔑 <span>Usuarios</span>
       </a>
+      <a href="/configuracion" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='configuracion' %}active{% endif %}">
+        ⚙️ <span>Configuración</span>
+      </a>
       {% endif %}
       {% if user.rol == 'superadmin' %}
       <div class="border-t border-gray-700 mt-2 pt-2">

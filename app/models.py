@@ -13,6 +13,8 @@ class Empresa(Base):
     telefono = Column(String)
     direccion = Column(String)
     nif = Column(String)
+    logo = Column(String, nullable=True)
+    color_corporativo = Column(String, nullable=True, default="#1E40AF")
     created_at = Column(DateTime, server_default=func.now())
 
     usuarios = relationship("Usuario", back_populates="empresa")
@@ -120,6 +122,8 @@ class LineaPresupuesto(Base):
     descripcion = Column(String, nullable=False)
     cantidad = Column(Float, default=1.0)
     precio_unitario = Column(Float, default=0.0)
+    unidad = Column(String, default="ud", nullable=True)
+    referencia = Column(String, nullable=True)
     orden = Column(Integer, default=0)
 
     presupuesto = relationship("Presupuesto", back_populates="lineas")

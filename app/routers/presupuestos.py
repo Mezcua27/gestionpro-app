@@ -1,3 +1,4 @@
+import os
 import secrets
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -8,6 +9,9 @@ from io import BytesIO
 from app.database import get_db
 from app import models, schemas
 from app.auth import get_current_user, get_effective_empresa_id
+
+BASE_DIR   = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 router = APIRouter()
 
@@ -222,7 +226,7 @@ def descargar_pdf(id: int, request: Request, db: Session = Depends(get_db)):
     if not p:
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
     empresa = db.query(models.Empresa).filter(models.Empresa.id == eid).first()
-    pdf_bytes = generar_pdf(p, empresa, p.cliente)
+    pdf_bytes = generar_pdf(p, empresa, p.cliente, static_dir=STATIC_DIR)
     nombre = f"{p.numero.replace('/', '-')}.pdf"
     return StreamingResponse(
         BytesIO(pdf_bytes),
@@ -285,7 +289,9 @@ def ver_presupuesto_cliente(token: str, db: Session = Depends(get_db)):
         "cliente": {"nombre": p.cliente.nombre if p.cliente else None},
         "lineas": [
             {"tipo": l.tipo, "descripcion": l.descripcion,
+             "referencia": getattr(l, "referencia", None),
              "cantidad": l.cantidad, "precio_unitario": l.precio_unitario,
+             "unidad": getattr(l, "unidad", "ud") or "ud",
              "total": l.cantidad * l.precio_unitario}
             for l in p.lineas
         ],

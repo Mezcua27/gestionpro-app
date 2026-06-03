@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from app.database import engine, get_db
 from app import models
 from app.auth import get_current_user, get_effective_empresa_id
-from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente, superadmin
+from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente, superadmin, empresa
 
 load_dotenv()
 
@@ -56,15 +56,17 @@ from datetime import timedelta as _timedelta
 templates.env.globals["timedelta"] = _timedelta
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 os.makedirs(os.path.join(STATIC_DIR, "uploads", "catalogo"), exist_ok=True)
+os.makedirs(os.path.join(STATIC_DIR, "uploads", "logos"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-app.include_router(auth_router.router, prefix="/auth", tags=["Auth"])
-app.include_router(catalogo.router, prefix="/api/catalogo", tags=["Catálogo"])
-app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
-app.include_router(presupuestos.router, prefix="/api/presupuestos", tags=["Presupuestos"])
-app.include_router(usuarios.router, prefix="/api/usuarios", tags=["Usuarios"])
-app.include_router(asistente.router, prefix="/api/asistente", tags=["Asistente IA"])
-app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Superadmin"])
+app.include_router(auth_router.router,   prefix="/auth",              tags=["Auth"])
+app.include_router(catalogo.router,      prefix="/api/catalogo",      tags=["Catálogo"])
+app.include_router(clientes.router,      prefix="/api/clientes",      tags=["Clientes"])
+app.include_router(presupuestos.router,  prefix="/api/presupuestos",  tags=["Presupuestos"])
+app.include_router(usuarios.router,      prefix="/api/usuarios",      tags=["Usuarios"])
+app.include_router(asistente.router,     prefix="/api/asistente",     tags=["Asistente IA"])
+app.include_router(superadmin.router,    prefix="/api/superadmin",    tags=["Superadmin"])
+app.include_router(empresa.router,       prefix="/api/empresa",       tags=["Empresa"])
 
 
 def _user_or_redirect(request: Request, db: Session):
@@ -237,3 +239,17 @@ def usuarios_page(request: Request, db: Session = Depends(get_db)):
         models.Usuario.empresa_id == user.empresa_id
     ).order_by(models.Usuario.nombre).all()
     return templates.TemplateResponse("usuarios.html", {"request": request, "user": user, "usuarios": lista})
+
+
+@app.get("/configuracion", response_class=HTMLResponse)
+def configuracion_page(request: Request, db: Session = Depends(get_db)):
+    user = _user_or_redirect(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    if user.rol not in ("admin", "superadmin"):
+        return RedirectResponse(url="/dashboard")
+    eid     = get_effective_empresa_id(user, request)
+    empresa = db.query(models.Empresa).filter(models.Empresa.id == eid).first()
+    return templates.TemplateResponse("configuracion.html", {
+        "request": request, "user": user, "empresa": empresa
+    })

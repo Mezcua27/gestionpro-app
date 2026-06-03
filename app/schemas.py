@@ -100,6 +100,8 @@ class LineaCreate(BaseModel):
     descripcion: str
     cantidad: float = 1.0
     precio_unitario: float = 0.0
+    unidad: Optional[str] = "ud"
+    referencia: Optional[str] = None
     orden: int = 0
 
 
@@ -108,6 +110,8 @@ class LineaUpdate(BaseModel):
     descripcion: Optional[str] = None
     cantidad: Optional[float] = None
     precio_unitario: Optional[float] = None
+    unidad: Optional[str] = None
+    referencia: Optional[str] = None
 
 
 class LineaResponse(BaseModel):
@@ -116,6 +120,8 @@ class LineaResponse(BaseModel):
     descripcion: str
     cantidad: float
     precio_unitario: float
+    unidad: Optional[str] = "ud"
+    referencia: Optional[str] = None
     orden: int
 
     class Config:
