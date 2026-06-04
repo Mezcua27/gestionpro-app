@@ -184,7 +184,9 @@ def añadir_lineas_bulk(id: int, lineas: List[schemas.LineaCreate], request: Req
         raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
     orden_base = len(p.lineas)
     for i, l in enumerate(lineas):
-        nueva = models.LineaPresupuesto(**l.dict(), presupuesto_id=id, orden=orden_base + i)
+        datos = l.dict()
+        datos['orden'] = orden_base + i  # sobreescribir orden con el correcto
+        nueva = models.LineaPresupuesto(**datos, presupuesto_id=id)
         db.add(nueva)
     db.commit()
     db.refresh(p)
