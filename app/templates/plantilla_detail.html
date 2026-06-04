@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% set active = "plantillas" %}
+{% block title %}{{ p.nombre }}{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/plantillas" class="text-gray-400 hover:text-gray-600 text-sm">← Plantillas</a>
+  <span class="text-gray-300">/</span>
+  <h1 class="text-xl font-bold text-gray-800 flex-1">{{ p.nombre }}</h1>
+  {% if p.categoria %}
+  <span class="text-xs bg-blue-50 text-blue-600 rounded-full px-3 py-1">{{ p.categoria }}</span>
+  {% endif %}
+  <button onclick="openUsarModal()"
+    class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    ▶ Usar plantilla
+  </button>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Columna izquierda: datos generales -->
+  <div class="space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Datos generales</h2>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Nombre</label>
+        <input id="fNombre" type="text" value="{{ p.nombre }}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Categoría</label>
+        <input id="fCategoria" type="text" value="{{ p.categoria or '' }}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Descripción</label>
+        <input id="fDescripcion" type="text" value="{{ p.descripcion or '' }}"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-3 gap-2">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Validez (d)</label>
+          <input id="fValidez" type="number" value="{{ p.validez_dias }}" min="1"
+            class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Desc. %</label>
+          <input id="fDescuento" type="number" value="{{ p.descuento }}" min="0" max="100" step="0.1"
+            class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">IVA %</label>
+          <input id="fIva" type="number" value="{{ p.iva }}" min="0" step="0.1"
+            class="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Notas</label>
+        <textarea id="fNotas" rows="3"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none">{{ p.notas or '' }}</textarea>
+      </div>
+      <button onclick="guardarDatos()"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-sm font-medium transition">
+        Guardar cambios
+      </button>
+    </div>
+
+    <!-- Resumen económico -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-2">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-3">Resumen</h2>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Base imponible</span><span id="rBase" class="font-medium">0,00 €</span></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">Descuento</span><span id="rDto" class="text-red-500">-0,00 €</span></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-500">IVA <span id="rIvaPct">21</span>%</span><span id="rIva" class="font-medium">0,00 €</span></div>
+      <div class="flex justify-between text-sm font-bold border-t pt-2 mt-1"><span>Total</span><span id="rTotal" class="text-blue-700">0,00 €</span></div>
+    </div>
+  </div>
+
+  <!-- Columna derecha: líneas -->
+  <div class="lg:col-span-2 space-y-4">
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Líneas</h2>
+        <button onclick="openAddLinea()"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition">
+          + Añadir línea
+        </button>
+      </div>
+
+      <div id="lineasContainer" class="space-y-2">
+        {% for l in p.lineas %}
+        <div class="linea-row flex items-center gap-2 p-3 rounded-lg border border-gray-100 hover:border-gray-200 bg-gray-50"
+             data-id="{{ l.id }}" data-subtotal="{{ l.cantidad * l.precio_unitario }}">
+          <span class="shrink-0 w-16 text-center text-xs px-1.5 py-0.5 rounded font-medium
+            {% if l.tipo == 'Material' %}bg-blue-100 text-blue-700
+            {% elif l.tipo == 'Mano de Obra' %}bg-green-100 text-green-700
+            {% else %}bg-purple-100 text-purple-700{% endif %}">
+            {% if l.tipo == 'Material' %}Mat{% elif l.tipo == 'Mano de Obra' %}M.O.{% else %}Var{% endif %}
+          </span>
+          <span class="flex-1 text-sm text-gray-800 truncate" title="{{ l.descripcion }}">{{ l.descripcion }}</span>
+          <span class="shrink-0 text-xs text-gray-400">{{ l.cantidad }} {{ l.unidad or 'ud' }}</span>
+          <span class="shrink-0 text-xs text-gray-500 w-16 text-right">{{ "%.2f"|format(l.precio_unitario) }} €</span>
+          <span class="shrink-0 text-xs font-semibold w-16 text-right">{{ "%.2f"|format(l.cantidad * l.precio_unitario) }} €</span>
+          <button onclick="editLinea({{ l.id }}, this)" class="shrink-0 text-blue-400 hover:text-blue-600 text-xs">✏</button>
+          <button onclick="deleteLinea({{ l.id }}, this)" class="shrink-0 text-red-400 hover:text-red-600 text-xs">✕</button>
+        </div>
+        {% else %}
+        <p id="emptyMsg" class="text-center text-gray-400 text-sm py-8">Sin líneas. Añade materiales y mano de obra.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal añadir/editar línea -->
+<div id="modalLinea" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <h3 id="lineaModalTitle" class="text-lg font-bold text-gray-800 mb-4">Añadir línea</h3>
+    <form id="lineaForm" class="space-y-3">
+      <input type="hidden" id="lineaId" value=""/>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+        <select id="lTipo" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="Material">Material</option>
+          <option value="Mano de Obra">Mano de Obra</option>
+          <option value="Varios">Varios</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción *</label>
+        <input type="text" id="lDesc" required
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+          <input type="number" id="lCantidad" value="1" min="0" step="0.01"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Precio ud.</label>
+          <input type="number" id="lPrecio" value="0" min="0" step="0.01"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
+          <input type="text" id="lUnidad" value="ud" placeholder="ud, m, h…"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Referencia</label>
+        <input type="text" id="lRef"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeLineaModal()"
+          class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition text-sm">Cancelar</button>
+        <button type="submit"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium text-sm">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal usar plantilla -->
+<div id="modalUsar" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-1">Usar plantilla</h3>
+    <p class="text-sm text-gray-500 mb-4">Se creará un presupuesto en borrador con todas las líneas.</p>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Título del presupuesto</label>
+        <input type="text" id="usarTitulo" value="{{ p.nombre }}"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-400"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Cliente (opcional)</label>
+        <select id="usarCliente"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-400">
+          <option value="">Sin cliente</option>
+          {% for c in clientes %}
+          <option value="{{ c.id }}">{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 pt-4">
+      <button onclick="closeUsarModal()"
+        class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition text-sm">Cancelar</button>
+      <button onclick="confirmarUsar()"
+        class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition font-medium text-sm">Crear presupuesto</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const PLANTILLA_ID = {{ p.id }};
+
+  // ── Resumen ────────────────────────────────────────────────────────────────
+  function recalcular() {
+    let base = 0;
+    document.querySelectorAll('.linea-row').forEach(r => {
+      base += parseFloat(r.dataset.subtotal || 0);
+    });
+    const dto   = parseFloat(document.getElementById('fDescuento').value) || 0;
+    const iva   = parseFloat(document.getElementById('fIva').value) || 21;
+    const dtoVal = base * dto / 100;
+    const ivaVal = (base - dtoVal) * iva / 100;
+    const total  = base - dtoVal + ivaVal;
+    const fmt = v => v.toFixed(2).replace('.', ',') + ' €';
+    document.getElementById('rBase').textContent   = fmt(base);
+    document.getElementById('rDto').textContent    = '-' + fmt(dtoVal);
+    document.getElementById('rIva').textContent    = fmt(ivaVal);
+    document.getElementById('rIvaPct').textContent = iva;
+    document.getElementById('rTotal').textContent  = fmt(total);
+  }
+  recalcular();
+  document.getElementById('fDescuento').addEventListener('input', recalcular);
+  document.getElementById('fIva').addEventListener('input', recalcular);
+
+  // ── Guardar datos generales ────────────────────────────────────────────────
+  async function guardarDatos() {
+    const body = {
+      nombre:       document.getElementById('fNombre').value,
+      categoria:    document.getElementById('fCategoria').value || null,
+      descripcion:  document.getElementById('fDescripcion').value || null,
+      validez_dias: parseInt(document.getElementById('fValidez').value) || 30,
+      descuento:    parseFloat(document.getElementById('fDescuento').value) || 0,
+      iva:          parseFloat(document.getElementById('fIva').value) || 21,
+      notas:        document.getElementById('fNotas').value || null,
+    };
+    try {
+      await api('PUT', `/api/plantillas/${PLANTILLA_ID}`, body);
+      toast('Cambios guardados');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Modal línea ────────────────────────────────────────────────────────────
+  function openAddLinea() {
+    document.getElementById('lineaId').value = '';
+    document.getElementById('lineaModalTitle').textContent = 'Añadir línea';
+    document.getElementById('lTipo').value = 'Material';
+    document.getElementById('lDesc').value = '';
+    document.getElementById('lCantidad').value = '1';
+    document.getElementById('lPrecio').value = '0';
+    document.getElementById('lUnidad').value = 'ud';
+    document.getElementById('lRef').value = '';
+    document.getElementById('modalLinea').classList.remove('hidden');
+    document.getElementById('lDesc').focus();
+  }
+
+  function editLinea(id, btn) {
+    const row = btn.closest('.linea-row');
+    const cells = row.querySelectorAll('span');
+    // Reconstruir desde data attrs o llamar API
+    document.getElementById('lineaId').value = id;
+    document.getElementById('lineaModalTitle').textContent = 'Editar línea';
+    // Llamar API para obtener datos exactos
+    api('GET', `/api/plantillas/${PLANTILLA_ID}`).then(pt => {
+      const l = pt.lineas.find(x => x.id === id);
+      if (!l) return;
+      document.getElementById('lTipo').value     = l.tipo;
+      document.getElementById('lDesc').value     = l.descripcion;
+      document.getElementById('lCantidad').value = l.cantidad;
+      document.getElementById('lPrecio').value   = l.precio_unitario;
+      document.getElementById('lUnidad').value   = l.unidad || 'ud';
+      document.getElementById('lRef').value      = l.referencia || '';
+      document.getElementById('modalLinea').classList.remove('hidden');
+    }).catch(err => toast(err.message, 'err'));
+  }
+
+  function closeLineaModal() { document.getElementById('modalLinea').classList.add('hidden'); }
+
+  document.getElementById('lineaForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const id     = document.getElementById('lineaId').value;
+    const body   = {
+      tipo:            document.getElementById('lTipo').value,
+      descripcion:     document.getElementById('lDesc').value,
+      cantidad:        parseFloat(document.getElementById('lCantidad').value) || 1,
+      precio_unitario: parseFloat(document.getElementById('lPrecio').value) || 0,
+      unidad:          document.getElementById('lUnidad').value || 'ud',
+      referencia:      document.getElementById('lRef').value || null,
+      orden:           document.querySelectorAll('.linea-row').length,
+    };
+
+    try {
+      let linea;
+      if (id) {
+        linea = await api('PUT', `/api/plantillas/${PLANTILLA_ID}/lineas/${id}`, body);
+      } else {
+        linea = await api('POST', `/api/plantillas/${PLANTILLA_ID}/lineas`, body);
+      }
+      closeLineaModal();
+      toast(id ? 'Línea actualizada' : 'Línea añadida');
+      // Recargar para reflejar cambios
+      location.reload();
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function deleteLinea(id, btn) {
+    if (!confirm('¿Eliminar esta línea?')) return;
+    try {
+      await api('DELETE', `/api/plantillas/${PLANTILLA_ID}/lineas/${id}`);
+      const row = btn.closest('.linea-row');
+      const sub = parseFloat(row.dataset.subtotal || 0);
+      row.remove();
+      // Actualizar subtotales para recalcular
+      recalcular();
+      toast('Línea eliminada');
+      if (!document.querySelectorAll('.linea-row').length) {
+        document.getElementById('lineasContainer').innerHTML =
+          '<p id="emptyMsg" class="text-center text-gray-400 text-sm py-8">Sin líneas. Añade materiales y mano de obra.</p>';
+      }
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  // ── Modal usar ─────────────────────────────────────────────────────────────
+  function openUsarModal() { document.getElementById('modalUsar').classList.remove('hidden'); }
+  function closeUsarModal() { document.getElementById('modalUsar').classList.add('hidden'); }
+
+  async function confirmarUsar() {
+    const cId   = document.getElementById('usarCliente').value;
+    const titulo = document.getElementById('usarTitulo').value.trim();
+    if (!titulo) { toast('El título es obligatorio', 'err'); return; }
+    try {
+      const pres = await api('POST', `/api/plantillas/${PLANTILLA_ID}/usar`, {
+        cliente_id: cId ? parseInt(cId) : null,
+        titulo,
+      });
+      toast('Presupuesto creado');
+      closeUsarModal();
+      setTimeout(() => window.location = `/presupuestos/${pres.id}`, 600);
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('modalLinea').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalLinea')) closeLineaModal();
+  });
+  document.getElementById('modalUsar').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalUsar')) closeUsarModal();
+  });
+</script>
+{% endblock %}

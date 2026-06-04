@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from app.database import engine, get_db
 from app import models
 from app.auth import get_current_user, get_effective_empresa_id
-from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente, superadmin, empresa
+from app.routers import auth_router, catalogo, clientes, presupuestos, usuarios, asistente, superadmin, empresa, plantillas
 
 load_dotenv()
 
@@ -42,6 +42,8 @@ with engine.connect() as conn:
     _add_col("empresas",             "condiciones_generales",   "TEXT")
     _add_col("lineas_presupuesto",   "unidad",                  "VARCHAR")
     _add_col("lineas_presupuesto",   "referencia",              "VARCHAR")
+    _add_col("plantillas_presupuesto", "categoria",             "VARCHAR")
+    _add_col("plantillas_presupuesto", "descripcion",           "VARCHAR")
 
     # Generar token_cliente para presupuestos existentes sin token
     import secrets as _secrets
@@ -72,6 +74,7 @@ app.include_router(usuarios.router,      prefix="/api/usuarios",      tags=["Usu
 app.include_router(asistente.router,     prefix="/api/asistente",     tags=["Asistente IA"])
 app.include_router(superadmin.router,    prefix="/api/superadmin",    tags=["Superadmin"])
 app.include_router(empresa.router,       prefix="/api/empresa",       tags=["Empresa"])
+app.include_router(plantillas.router,    prefix="/api/plantillas",    tags=["Plantillas"])
 
 
 def _user_or_redirect(request: Request, db: Session):
@@ -222,6 +225,47 @@ def presupuesto_detail(id: int, request: Request, db: Session = Depends(get_db))
         models.Cliente.empresa_id == eid, models.Cliente.activo == True
     ).order_by(models.Cliente.nombre).all()
     return templates.TemplateResponse("presupuesto_detail.html", {
+        "request": request, "user": user, "empresa_vista": empresa_vista,
+        "p": p, "clientes": clientes_lista
+    })
+
+
+@app.get("/plantillas", response_class=HTMLResponse)
+def plantillas_page(request: Request, db: Session = Depends(get_db)):
+    user = _user_or_redirect(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
+    lista = db.query(models.PlantillaPresupuesto).filter(
+        models.PlantillaPresupuesto.empresa_id == eid
+    ).order_by(models.PlantillaPresupuesto.nombre).all()
+    clientes_lista = db.query(models.Cliente).filter(
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
+    ).order_by(models.Cliente.nombre).all()
+    return templates.TemplateResponse("plantillas.html", {
+        "request": request, "user": user, "empresa_vista": empresa_vista,
+        "plantillas": lista, "clientes": clientes_lista
+    })
+
+
+@app.get("/plantillas/{id}", response_class=HTMLResponse)
+def plantilla_detail(id: int, request: Request, db: Session = Depends(get_db)):
+    user = _user_or_redirect(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
+    p = db.query(models.PlantillaPresupuesto).filter(
+        models.PlantillaPresupuesto.id == id,
+        models.PlantillaPresupuesto.empresa_id == eid
+    ).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Plantilla no encontrada")
+    clientes_lista = db.query(models.Cliente).filter(
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
+    ).order_by(models.Cliente.nombre).all()
+    return templates.TemplateResponse("plantilla_detail.html", {
         "request": request, "user": user, "empresa_vista": empresa_vista,
         "p": p, "clientes": clientes_lista
     })

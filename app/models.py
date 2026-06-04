@@ -22,6 +22,7 @@ class Empresa(Base):
     catalogo = relationship("CatalogoItem", back_populates="empresa")
     clientes = relationship("Cliente", back_populates="empresa")
     presupuestos = relationship("Presupuesto", back_populates="empresa")
+    plantillas = relationship("PlantillaPresupuesto", back_populates="empresa")
 
 
 class Usuario(Base):
@@ -99,6 +100,41 @@ class Presupuesto(Base):
     cliente = relationship("Cliente", back_populates="presupuestos")
     lineas = relationship("LineaPresupuesto", back_populates="presupuesto",
                           cascade="all, delete-orphan", order_by="LineaPresupuesto.orden")
+
+
+class PlantillaPresupuesto(Base):
+    __tablename__ = "plantillas_presupuesto"
+
+    id = Column(Integer, primary_key=True, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False)
+    nombre = Column(String, nullable=False)
+    descripcion = Column(String, nullable=True)
+    categoria = Column(String, nullable=True)
+    notas = Column(Text, nullable=True)
+    descuento = Column(Float, default=0.0)
+    iva = Column(Float, default=21.0)
+    validez_dias = Column(Integer, default=30)
+    created_at = Column(DateTime, server_default=func.now())
+
+    empresa = relationship("Empresa", back_populates="plantillas")
+    lineas = relationship("LineaPlantilla", back_populates="plantilla",
+                          cascade="all, delete-orphan", order_by="LineaPlantilla.orden")
+
+
+class LineaPlantilla(Base):
+    __tablename__ = "lineas_plantilla"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plantilla_id = Column(Integer, ForeignKey("plantillas_presupuesto.id"), nullable=False)
+    tipo = Column(String, nullable=False)
+    descripcion = Column(String, nullable=False)
+    cantidad = Column(Float, default=1.0)
+    precio_unitario = Column(Float, default=0.0)
+    unidad = Column(String, default="ud", nullable=True)
+    referencia = Column(String, nullable=True)
+    orden = Column(Integer, default=0)
+
+    plantilla = relationship("PlantillaPresupuesto", back_populates="lineas")
 
 
 class ResetToken(Base):

@@ -28,6 +28,9 @@
       <a href="/presupuestos" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='presupuestos' %}active{% endif %}">
         📄 <span>Presupuestos</span>
       </a>
+      <a href="/plantillas" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='plantillas' %}active{% endif %}">
+        📋 <span>Plantillas</span>
+      </a>
       {% if user.rol in ('admin', 'superadmin') %}
       <a href="/usuarios" class="sidebar-link flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-700 transition {% if active=='usuarios' %}active{% endif %}">
         🔑 <span>Usuarios</span>

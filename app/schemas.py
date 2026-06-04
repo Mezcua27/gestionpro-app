@@ -167,6 +167,77 @@ class PresupuestoResponse(BaseModel):
         from_attributes = True
 
 
+# ── Plantillas ───────────────────────────────────────────────────────────────
+
+class LineaPlantillaCreate(BaseModel):
+    tipo: Literal["Material", "Mano de Obra", "Varios"]
+    descripcion: str
+    cantidad: float = 1.0
+    precio_unitario: float = 0.0
+    unidad: Optional[str] = "ud"
+    referencia: Optional[str] = None
+    orden: int = 0
+
+
+class LineaPlantillaUpdate(BaseModel):
+    tipo: Optional[Literal["Material", "Mano de Obra", "Varios"]] = None
+    descripcion: Optional[str] = None
+    cantidad: Optional[float] = None
+    precio_unitario: Optional[float] = None
+    unidad: Optional[str] = None
+    referencia: Optional[str] = None
+
+
+class LineaPlantillaResponse(BaseModel):
+    id: int
+    tipo: str
+    descripcion: str
+    cantidad: float
+    precio_unitario: float
+    unidad: Optional[str] = "ud"
+    referencia: Optional[str] = None
+    orden: int
+
+    class Config:
+        from_attributes = True
+
+
+class PlantillaCreate(BaseModel):
+    nombre: str
+    descripcion: Optional[str] = None
+    categoria: Optional[str] = None
+    notas: Optional[str] = None
+    descuento: float = 0.0
+    iva: float = 21.0
+    validez_dias: int = 30
+
+
+class PlantillaUpdate(BaseModel):
+    nombre: Optional[str] = None
+    descripcion: Optional[str] = None
+    categoria: Optional[str] = None
+    notas: Optional[str] = None
+    descuento: Optional[float] = None
+    iva: Optional[float] = None
+    validez_dias: Optional[int] = None
+
+
+class PlantillaResponse(BaseModel):
+    id: int
+    nombre: str
+    descripcion: Optional[str]
+    categoria: Optional[str]
+    notas: Optional[str]
+    descuento: float
+    iva: float
+    validez_dias: int
+    lineas: List[LineaPlantillaResponse] = []
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 # ── Asistente IA (original) ───────────────────────────────────────────────────
 
 class LineaItem(BaseModel):
