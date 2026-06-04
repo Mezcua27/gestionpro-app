@@ -135,8 +135,21 @@
     <!-- TAB: Catálogo -->
     <div id="pane-catalogo" class="flex flex-col flex-1 min-h-0 p-4">
       <input type="search" id="catalogoBuscar" placeholder="Buscar producto, marca o referencia..."
-        oninput="filtrarCatalogo(this.value)"
-        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 mb-3"/>
+        oninput="filtrarCatalogo()"
+        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 mb-2"/>
+      <div class="flex gap-2 mb-3 flex-wrap">
+        <select id="filtroTipo" onchange="filtrarCatalogo()"
+          class="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+          <option value="">Todos los tipos</option>
+          <option value="Material">Material</option>
+          <option value="Mano de Obra">Mano de Obra</option>
+          <option value="Varios">Varios</option>
+        </select>
+        <select id="filtroMarca" onchange="filtrarCatalogo()"
+          class="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-blue-400 bg-white">
+          <option value="">Todas las marcas</option>
+        </select>
+      </div>
       <div id="catalogoLista" class="overflow-y-auto flex-1 space-y-1.5 min-h-0 max-h-64">
         <p class="text-sm text-gray-400 text-center py-6">Cargando catálogo...</p>
       </div>
@@ -350,6 +363,10 @@
   async function cargarCatalogo() {
     try {
       catalogoItems = await api('GET', '/api/catalogo/');
+      const marcas = [...new Set(catalogoItems.map(i => i.marca).filter(Boolean))].sort();
+      const sel = document.getElementById('filtroMarca');
+      sel.innerHTML = '<option value="">Todas las marcas</option>' +
+        marcas.map(m => `<option value="${m}">${m}</option>`).join('');
       renderCatalogo(catalogoItems);
     } catch(e) {
       document.getElementById('catalogoLista').innerHTML =
@@ -384,15 +401,21 @@
     }).join('');
   }
 
-  function filtrarCatalogo(q) {
+  function filtrarCatalogo() {
     if (!catalogoItems) return;
-    const lower = q.toLowerCase();
-    const filtrados = !lower ? catalogoItems : catalogoItems.filter(i =>
-      i.descripcion.toLowerCase().includes(lower) ||
-      (i.marca || '').toLowerCase().includes(lower) ||
-      (i.referencia || '').toLowerCase().includes(lower) ||
-      i.tipo.toLowerCase().includes(lower)
-    );
+    const q     = (document.getElementById('catalogoBuscar').value || '').toLowerCase();
+    const tipo  = document.getElementById('filtroTipo').value;
+    const marca = document.getElementById('filtroMarca').value;
+    const filtrados = catalogoItems.filter(i => {
+      if (tipo  && i.tipo  !== tipo)  return false;
+      if (marca && i.marca !== marca) return false;
+      if (q && !(
+        i.descripcion.toLowerCase().includes(q) ||
+        (i.marca || '').toLowerCase().includes(q) ||
+        (i.referencia || '').toLowerCase().includes(q)
+      )) return false;
+      return true;
+    });
     renderCatalogo(filtrados);
     if (itemSeleccionado) {
       const el = document.getElementById(`cat-item-${itemSeleccionado.id}`);
