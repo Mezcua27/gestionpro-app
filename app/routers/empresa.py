@@ -22,14 +22,15 @@ def obtener(request: Request, db: Session = Depends(get_db)):
     if not e:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return {
-        "id":                e.id,
-        "nombre":            e.nombre,
-        "email":             e.email       or "",
-        "telefono":          e.telefono    or "",
-        "direccion":         e.direccion   or "",
-        "nif":               e.nif         or "",
-        "logo":              e.logo or None,   # data URI completo
-        "color_corporativo": e.color_corporativo or "#1E40AF",
+        "id":                    e.id,
+        "nombre":                e.nombre,
+        "email":                 e.email       or "",
+        "telefono":              e.telefono    or "",
+        "direccion":             e.direccion   or "",
+        "nif":                   e.nif         or "",
+        "logo":                  e.logo or None,
+        "color_corporativo":     e.color_corporativo     or "#1E40AF",
+        "condiciones_generales": e.condiciones_generales or "",
     }
 
 
@@ -43,7 +44,7 @@ def actualizar(data: dict, request: Request, db: Session = Depends(get_db)):
     if not e:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
-    for campo in ("nombre", "email", "telefono", "direccion", "nif"):
+    for campo in ("nombre", "email", "telefono", "direccion", "nif", "condiciones_generales"):
         if campo in data and data[campo] is not None:
             setattr(e, campo, str(data[campo]).strip())
 

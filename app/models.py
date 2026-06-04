@@ -15,6 +15,7 @@ class Empresa(Base):
     nif = Column(String)
     logo = Column(Text, nullable=True)
     color_corporativo = Column(String, nullable=True, default="#1E40AF")
+    condiciones_generales = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     usuarios = relationship("Usuario", back_populates="empresa")

@@ -285,7 +285,12 @@ def ver_presupuesto_cliente(token: str, db: Session = Depends(get_db)):
         "expirado": expirado,
         "fecha_lectura": p.fecha_lectura.strftime("%d/%m/%Y %H:%M") if p.fecha_lectura else None,
         "fecha_aceptacion": p.fecha_aceptacion.strftime("%d/%m/%Y %H:%M") if p.fecha_aceptacion else None,
-        "empresa": {"nombre": empresa.nombre, "telefono": empresa.telefono, "email": empresa.email},
+        "empresa": {
+            "nombre": empresa.nombre,
+            "telefono": empresa.telefono,
+            "email": empresa.email,
+            "condiciones_generales": getattr(empresa, "condiciones_generales", None) or "",
+        },
         "cliente": {"nombre": p.cliente.nombre if p.cliente else None},
         "lineas": [
             {"tipo": l.tipo, "descripcion": l.descripcion,

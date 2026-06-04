@@ -447,18 +447,41 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     ]))
     story.append(tf)
 
-    # ── NOTAS ─────────────────────────────────────────────────────────────────
-    if presupuesto.notas:
+    # ── NOTAS Y CONDICIONES GENERALES ────────────────────────────────────────
+    notas            = (presupuesto.notas or "").strip()
+    condiciones      = (getattr(empresa, "condiciones_generales", None) or "").strip()
+    texto_notas      = notas
+    if condiciones:
+        texto_notas  = (notas + "\n\n" + condiciones) if notas else condiciones
+
+    if texto_notas:
         story.append(Spacer(1, 5 * mm))
         story.append(_barra("NOTAS Y CONDICIONES", GRIS_OSCURO, W, st))
         story.append(Spacer(1, 2 * mm))
-        nt = Table([[Paragraph(presupuesto.notas, st["Notas"])]], colWidths=[W])
+        # Si hay notas propias y condiciones, mostrarlas separadas
+        celdas = []
+        if notas:
+            celdas.append(Paragraph(notas, st["Notas"]))
+        if condiciones and notas:
+            celdas.append(Spacer(1, 4))
+            celdas.append(HRFlowable(width=W - 16, color=GRIS_LINEA, thickness=0.5))
+            celdas.append(Spacer(1, 4))
+        if condiciones:
+            celdas.append(Paragraph(
+                "<b>Condiciones generales:</b>",
+                ParagraphStyle("CG", fontSize=8, textColor=GRIS_OSCURO,
+                               fontName="Helvetica-Bold", leading=12)
+            ))
+            celdas.append(Spacer(1, 3))
+            celdas.append(Paragraph(condiciones, st["Notas"]))
+        nt = Table([celdas], colWidths=[W])
         nt.setStyle(TableStyle([
             ("BACKGROUND",    (0, 0), (0, 0), GRIS_CLARO),
-            ("TOPPADDING",    (0, 0), (0, 0), 6),
-            ("BOTTOMPADDING", (0, 0), (0, 0), 6),
-            ("LEFTPADDING",   (0, 0), (0, 0), 8),
-            ("RIGHTPADDING",  (0, 0), (0, 0), 8),
+            ("TOPPADDING",    (0, 0), (0, 0), 8),
+            ("BOTTOMPADDING", (0, 0), (0, 0), 8),
+            ("LEFTPADDING",   (0, 0), (0, 0), 10),
+            ("RIGHTPADDING",  (0, 0), (0, 0), 10),
+            ("VALIGN",        (0, 0), (0, 0), "TOP"),
         ]))
         story.append(nt)
 
