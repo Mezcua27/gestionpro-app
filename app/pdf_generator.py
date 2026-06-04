@@ -179,11 +179,15 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     logo_field = getattr(empresa, "logo", None)
     if logo_field and logo_field.startswith("data:"):
         try:
-            # Extraer bytes del data URI: data:image/png;base64,XXXX
+            import base64 as _b64, tempfile
             header, b64data = logo_field.split(",", 1)
-            import base64 as _b64
             logo_bytes = _b64.b64decode(b64data)
-            img = Image(BytesIO(logo_bytes))
+            ext = "jpg" if ("jpeg" in header or "jpg" in header) else "png"
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}")
+            tmp.write(logo_bytes)
+            tmp.flush()
+            tmp.close()
+            img = Image(tmp.name)
             img.drawHeight = 14 * mm
             img.drawWidth  = img.drawHeight * (img._imageWidth / img._imageHeight)
             if img.drawWidth > W * 0.40:
@@ -191,8 +195,10 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
                 img.drawHeight = img.drawWidth * (img._imageHeight / img._imageWidth)
             izq.append(img)
             izq.append(Spacer(1, 3))
-        except Exception:
-            pass
+            import atexit as _atexit
+            _atexit.register(lambda p=tmp.name: os.remove(p) if os.path.exists(p) else None)
+        except Exception as _e:
+            print(f"[PDF] Error cargando logo: {_e}")
 
     izq.append(Paragraph(empresa.nombre, st["EmpresaNombre"]))
     for campo, prefijo in [("nif", "NIF: "), ("direccion", ""), ("telefono", "Tel: "), ("email", "")]:
