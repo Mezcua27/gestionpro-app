@@ -188,11 +188,9 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
             tmp.flush()
             tmp.close()
             img = Image(tmp.name)
-            img.drawHeight = 14 * mm
-            img.drawWidth  = img.drawHeight * (img._imageWidth / img._imageHeight)
-            if img.drawWidth > W * 0.40:
-                img.drawWidth  = W * 0.40
-                img.drawHeight = img.drawWidth * (img._imageHeight / img._imageWidth)
+            img._restrictSize(W * 0.40, 20 * mm)  # fuerza la carga y limita tamaño
+            img.drawHeight = min(img.drawHeight, 14 * mm)
+            img.drawWidth  = img.drawWidth * (img.drawHeight / max(img.drawHeight, 0.1))
             izq.append(img)
             izq.append(Spacer(1, 3))
             import atexit as _atexit
