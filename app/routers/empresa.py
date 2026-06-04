@@ -1,5 +1,5 @@
+import base64
 import os
-import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -8,14 +8,8 @@ from app.auth import get_current_user, get_effective_empresa_id, require_admin
 
 router = APIRouter()
 
-LOGO_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "static", "uploads", "logos"
-)
-os.makedirs(LOGO_DIR, exist_ok=True)
-
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/svg+xml"}
-MAX_SIZE      = 2 * 1024 * 1024   # 2 MB
+MAX_SIZE      = 2 * 1024 * 1024  # 2 MB
 
 
 # ── GET datos empresa ─────────────────────────────────────────────────────────
@@ -34,7 +28,7 @@ def obtener(request: Request, db: Session = Depends(get_db)):
         "telefono":          e.telefono    or "",
         "direccion":         e.direccion   or "",
         "nif":               e.nif         or "",
-        "logo":              f"/static/uploads/logos/{e.logo}" if e.logo else None,
+        "logo":              e.logo or None,   # data URI completo
         "color_corporativo": e.color_corporativo or "#1E40AF",
     }
 
@@ -80,21 +74,13 @@ async def subir_logo(request: Request, logo: UploadFile = File(...), db: Session
     if len(contenido) > MAX_SIZE:
         raise HTTPException(status_code=400, detail="El logo no puede superar 2 MB.")
 
-    ext = logo.filename.rsplit(".", 1)[-1].lower() if "." in logo.filename else "png"
-    nombre = f"logo_{eid}_{uuid.uuid4().hex[:8]}.{ext}"
+    # Guardar como data URI en la base de datos (persiste en PostgreSQL)
+    b64 = base64.b64encode(contenido).decode("utf-8")
+    data_uri = f"data:{logo.content_type};base64,{b64}"
 
-    # Borrar logo anterior
-    if e.logo:
-        anterior = os.path.join(LOGO_DIR, e.logo)
-        if os.path.exists(anterior):
-            os.remove(anterior)
-
-    with open(os.path.join(LOGO_DIR, nombre), "wb") as f:
-        f.write(contenido)
-
-    e.logo = nombre
+    e.logo = data_uri
     db.commit()
-    return {"ok": True, "logo": f"/static/uploads/logos/{nombre}"}
+    return {"ok": True, "logo": data_uri}
 
 
 # ── DELETE logo ───────────────────────────────────────────────────────────────
@@ -106,10 +92,6 @@ def eliminar_logo(request: Request, db: Session = Depends(get_db)):
     e     = db.query(models.Empresa).filter(models.Empresa.id == eid).first()
     if not e:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
-    if e.logo:
-        ruta = os.path.join(LOGO_DIR, e.logo)
-        if os.path.exists(ruta):
-            os.remove(ruta)
-        e.logo = None
-        db.commit()
+    e.logo = None
+    db.commit()
     return {"ok": True}

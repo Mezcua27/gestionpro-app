@@ -13,7 +13,7 @@ class Empresa(Base):
     telefono = Column(String)
     direccion = Column(String)
     nif = Column(String)
-    logo = Column(String, nullable=True)
+    logo = Column(Text, nullable=True)
     color_corporativo = Column(String, nullable=True, default="#1E40AF")
     created_at = Column(DateTime, server_default=func.now())
 

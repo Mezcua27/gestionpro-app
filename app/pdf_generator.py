@@ -175,22 +175,24 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     # ── CABECERA ──────────────────────────────────────────────────────────────
     izq = []
 
-    # Logo
+    # Logo — guardado como data URI en PostgreSQL
     logo_field = getattr(empresa, "logo", None)
-    if logo_field and static_dir:
-        path = os.path.join(static_dir, "uploads", "logos", logo_field)
-        if os.path.isfile(path):
-            try:
-                img = Image(path)
-                img.drawHeight = 14 * mm
-                img.drawWidth  = img.drawHeight * (img._imageWidth / img._imageHeight)
-                if img.drawWidth > W * 0.40:
-                    img.drawWidth  = W * 0.40
-                    img.drawHeight = img.drawWidth * (img._imageHeight / img._imageWidth)
-                izq.append(img)
-                izq.append(Spacer(1, 3))
-            except Exception:
-                pass
+    if logo_field and logo_field.startswith("data:"):
+        try:
+            # Extraer bytes del data URI: data:image/png;base64,XXXX
+            header, b64data = logo_field.split(",", 1)
+            import base64 as _b64
+            logo_bytes = _b64.b64decode(b64data)
+            img = Image(BytesIO(logo_bytes))
+            img.drawHeight = 14 * mm
+            img.drawWidth  = img.drawHeight * (img._imageWidth / img._imageHeight)
+            if img.drawWidth > W * 0.40:
+                img.drawWidth  = W * 0.40
+                img.drawHeight = img.drawWidth * (img._imageHeight / img._imageWidth)
+            izq.append(img)
+            izq.append(Spacer(1, 3))
+        except Exception:
+            pass
 
     izq.append(Paragraph(empresa.nombre, st["EmpresaNombre"]))
     for campo, prefijo in [("nif", "NIF: "), ("direccion", ""), ("telefono", "Tel: "), ("email", "")]:

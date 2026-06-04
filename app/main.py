@@ -32,11 +32,15 @@ with engine.connect() as conn:
             conn.execute(text(f"ALTER TABLE {tabla} ADD COLUMN IF NOT EXISTS {columna} {tipo}"))
         conn.commit()
 
-    _add_col("catalogo",      "foto",             "VARCHAR")
-    _add_col("catalogo",      "marca",            "VARCHAR")
-    _add_col("presupuestos",  "token_cliente",     "VARCHAR")
-    _add_col("presupuestos",  "fecha_lectura",     "DATETIME",  "TIMESTAMP")
-    _add_col("presupuestos",  "fecha_aceptacion",  "DATETIME",  "TIMESTAMP")
+    _add_col("catalogo",             "foto",               "VARCHAR")
+    _add_col("catalogo",             "marca",              "VARCHAR")
+    _add_col("presupuestos",         "token_cliente",      "VARCHAR")
+    _add_col("presupuestos",         "fecha_lectura",      "DATETIME",  "TIMESTAMP")
+    _add_col("presupuestos",         "fecha_aceptacion",   "DATETIME",  "TIMESTAMP")
+    _add_col("empresas",             "logo",               "TEXT")
+    _add_col("empresas",             "color_corporativo",  "VARCHAR")
+    _add_col("lineas_presupuesto",   "unidad",             "VARCHAR")
+    _add_col("lineas_presupuesto",   "referencia",         "VARCHAR")
 
     # Generar token_cliente para presupuestos existentes sin token
     import secrets as _secrets

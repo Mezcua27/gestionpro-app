@@ -19,7 +19,7 @@
       <div id="logoPreview"
            class="w-28 h-28 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden flex-shrink-0">
         {% if empresa.logo %}
-          <img src="/static/uploads/logos/{{ empresa.logo }}"
+          <img src="{{ empresa.logo }}"
                alt="Logo" class="w-full h-full object-contain p-2" id="logoImg">
         {% else %}
           <span class="text-3xl text-gray-300" id="logoPlaceholder">🏢</span>
