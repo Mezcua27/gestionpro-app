@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+{% set active = "plantillas" %}
+{% block title %}Generar plantilla{% endblock %}
+
+{% block content %}
+<div class="flex items-center gap-3 mb-6">
+  <a href="/plantillas" class="text-gray-400 hover:text-gray-600 text-sm">← Plantillas</a>
+  <span class="text-gray-300">/</span>
+  <h1 class="text-xl font-bold text-gray-800">Generador de plantilla eléctrica</h1>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Columna izquierda: configuración -->
+  <div class="space-y-4">
+
+    <!-- Tipo de instalación -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">Instalación</h2>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+        <div class="flex gap-2">
+          <button onclick="setElec('basica')" id="btn-basica"
+            class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-blue-600 bg-blue-600 text-white transition">
+            Básica (5 circuitos)
+          </button>
+          <button onclick="setElec('elevada')" id="btn-elevada"
+            class="flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 bg-white text-gray-600 hover:border-blue-300 transition">
+            Elevada (9 circuitos)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Protecciones -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">🔲 Protecciones (cuadro)</h2>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Fabricante</label>
+        <select id="sel-prot" onchange="recalcular()"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="acti9">Schneider Electric — Acti9 (Gama alta)</option>
+          <option value="domae">Schneider Electric — Domae (Gama media)</option>
+          <option value="legrand">Legrand — DX3 / REF2 (Gama media)</option>
+          <option value="solera">Solera (Gama básica)</option>
+          <option value="gewiss">Gewiss (Gama básica)</option>
+        </select>
+      </div>
+      <div id="preview-prot" class="text-xs text-gray-500 space-y-0.5"></div>
+    </div>
+
+    <!-- Mecanismos -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">🔌 Mecanismos</h2>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Fabricante</label>
+        <select id="sel-mec" onchange="recalcular()"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="simon">Simon 82 Detail (Gama alta)</option>
+          <option value="legrand_mec">Legrand Céliane (Gama media)</option>
+          <option value="solera_mec">Solera Galea (Gama básica)</option>
+        </select>
+      </div>
+      <p class="text-xs text-gray-400 italic">Cantidades orientativas — ajusta en la plantilla</p>
+    </div>
+
+    <!-- Cable -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">🔶 Cable y tubo</h2>
+      <div>
+        <label class="block text-xs text-gray-500 mb-1">Fabricante</label>
+        <select id="sel-cable" onchange="recalcular()"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="prysmian">Prysmian Afumex — H07Z1-K libre halógenos (Gama alta)</option>
+          <option value="topcable">Top Cable — H07V-K PVC (Gama media/básica)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Mano de obra -->
+    <div class="bg-white rounded-xl shadow-sm p-5 space-y-3">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide">🔧 Mano de obra</h2>
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <input type="checkbox" id="chk-mo" checked onchange="recalcular()" class="rounded"/>
+        Incluir instalación cuadro + CIE
+      </label>
+    </div>
+
+  </div>
+
+  <!-- Columna derecha: vista previa y acciones -->
+  <div class="lg:col-span-2 space-y-4">
+
+    <!-- Nombre de la plantilla -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <label class="block text-xs text-gray-500 mb-1">Nombre de la plantilla</label>
+      <input type="text" id="nombrePlantilla"
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 font-medium"/>
+    </div>
+
+    <!-- Tabla de líneas -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 text-sm uppercase tracking-wide mb-4">Vista previa de líneas</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr class="text-left text-gray-400 text-xs">
+              <th class="px-3 py-2">Tipo</th>
+              <th class="px-3 py-2">Descripción</th>
+              <th class="px-3 py-2 text-right">Cant.</th>
+              <th class="px-3 py-2">Ud.</th>
+              <th class="px-3 py-2 text-right">P. unit.</th>
+              <th class="px-3 py-2 text-right">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="previewBody" class="divide-y divide-gray-50 text-xs"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Resumen y botón crear -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-end justify-between">
+        <div class="space-y-1 text-sm">
+          <div class="flex gap-8">
+            <span class="text-gray-500">Base imponible</span>
+            <span id="resBase" class="font-semibold">—</span>
+          </div>
+          <div class="flex gap-8">
+            <span class="text-gray-500">IVA 21 %</span>
+            <span id="resIva" class="font-semibold">—</span>
+          </div>
+          <div class="flex gap-8 text-base font-bold border-t pt-2 mt-1">
+            <span>Total</span>
+            <span id="resTotal" class="text-blue-700">—</span>
+          </div>
+        </div>
+        <button onclick="crearPlantilla()"
+          class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl font-semibold text-sm transition shadow-sm">
+          ✅ Crear plantilla
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Catálogo de productos por fabricante ────────────────────────────────────
+
+const PROT = {
+  acti9: [
+    {d:'Interruptor General Automatico 2P 40A Curva C 6kA - 40A 6kA Acti9 iC60N 2 polos', p:34.71, ref:'A9F74240'},
+    {d:'Interruptor Diferencial 2P 40A 30mA Tipo AC - 40A 30mA Acti9 iID',                p:56.20, ref:'A9Z05240'},
+    {d:'Magnetotermico 1P+N 10A Curva C 6kA - Iluminacion C1 cable 1,5mm2',               p:14.05, ref:'A9F74110'},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases generales C2 cable 2,5mm2',           p:14.05, ref:'A9F74116'},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Cocina/Horno C3 cable 6mm2',                  p:23.97, ref:'A9F74225'},
+    {d:'Magnetotermico 2P 20A Curva C 6kA - Lavadora/Lavavajillas C4 cable 4mm2',         p:22.31, ref:'A9F74220'},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Banyo/Bases cocina C5 cable 2,5mm2',        p:14.05, ref:'A9F74116'},
+    {d:'Cuadro empotrar 24 modulos 2 filas puerta opaca - IP40 Pragma',                    p:47.93, ref:''},
+  ],
+  domae: [
+    {d:'Interruptor General Automatico 2P 40A Curva C 6kA - 40A 6kA Domae 2 polos',       p:23.14, ref:''},
+    {d:'Interruptor Diferencial 2P 40A 30mA Tipo AC - 40A 30mA Domae',                    p:15.69, ref:''},
+    {d:'Magnetotermico 1P+N 10A Curva C 6kA - Iluminacion C1 Domae',                      p:4.05,  ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases generales C2 Domae',                  p:4.05,  ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Cocina/Horno C3 Domae',                       p:7.44,  ref:''},
+    {d:'Magnetotermico 2P 20A Curva C 6kA - Lavadora/Lavavajillas C4 Domae',              p:6.61,  ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Banyo/Bases cocina C5 Domae',               p:4.05,  ref:''},
+    {d:'Cuadro empotrar 24 modulos 2 filas puerta transparente - IP40 XL3',                p:32.23, ref:''},
+  ],
+  legrand: [
+    {d:'Interruptor General Automatico 2P 40A Curva C 6kA - 40A 6kA Legrand 2 polos',     p:23.14, ref:''},
+    {d:'Interruptor Diferencial 2P 40A 30mA Tipo AC - 40A 30mA Legrand REF2',             p:15.69, ref:''},
+    {d:'Magnetotermico 1P+N 10A Curva C 6kA - Iluminacion C1 DX3',                        p:4.05,  ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases generales C2 DX3',                    p:4.05,  ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Cocina/Horno C3 DX3',                         p:7.44,  ref:''},
+    {d:'Magnetotermico 2P 20A Curva C 6kA - Lavadora/Lavavajillas C4 DX3',                p:6.61,  ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Banyo/Bases cocina C5 DX3',                 p:4.05,  ref:''},
+    {d:'Cuadro empotrar 24 modulos 2 filas puerta transparente - IP40 XL3 Legrand',        p:32.23, ref:''},
+  ],
+  solera: [
+    {d:'Interruptor General Automatico 2P 40A Curva C 4,5kA - 40A 4,5kA Solera 2 polos',  p:11.57, ref:''},
+    {d:'Interruptor Diferencial 2P 40A 30mA Tipo AC - 40A 30mA Solera',                   p:18.18, ref:''},
+    {d:'Magnetotermico 1P 10A Curva C 4,5kA - Iluminacion C1 Solera',                     p:4.13,  ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases generales C2 Solera',                 p:4.13,  ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 4,5kA - Cocina/Horno C3 Solera',                    p:6.61,  ref:''},
+    {d:'Magnetotermico 2P 20A Curva C 4,5kA - Lavadora C4 Solera',                        p:5.79,  ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Banyo/Bases cocina C5 Solera',              p:4.13,  ref:''},
+    {d:'Cuadro empotrar 24 modulos puerta opaca - IP40 Solera',                            p:14.88, ref:''},
+  ],
+  gewiss: [
+    {d:'Interruptor General Automatico 2P 40A Curva C 4,5kA - 40A 4,5kA Gewiss 2 polos',  p:11.57, ref:''},
+    {d:'Interruptor Diferencial 2P 40A 30mA Tipo A - 40A 30mA Gewiss',                    p:23.14, ref:''},
+    {d:'Magnetotermico 1P 10A Curva C 4,5kA - Iluminacion C1 Gewiss',                     p:4.13,  ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases generales C2 Gewiss',                 p:4.13,  ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 4,5kA - Cocina/Horno C3 Gewiss',                    p:6.61,  ref:''},
+    {d:'Magnetotermico 2P 20A Curva C 4,5kA - Lavadora C4 Gewiss',                        p:5.79,  ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Banyo/Bases cocina C5 Gewiss',              p:4.13,  ref:''},
+    {d:'Cuadro empotrar 24 modulos puerta opaca - IP40 Gewiss',                            p:14.88, ref:''},
+  ],
+};
+
+const PROT_EXTRA = {
+  acti9:  [
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases adicionales C6 Acti9',  p:14.05, ref:'A9F74116'},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Aire acondicionado C7 Acti9',   p:23.97, ref:'A9F74225'},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases cocina C8 Acti9',       p:14.05, ref:'A9F74116'},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases banyo C9 Acti9',        p:14.05, ref:'A9F74116'},
+  ],
+  domae:  [
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases adicionales C6 Domae',  p:4.05, ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Aire acondicionado C7 Domae',   p:7.44, ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases cocina C8 Domae',       p:4.05, ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases banyo C9 Domae',        p:4.05, ref:''},
+  ],
+  legrand:[
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases adicionales C6 DX3',   p:4.05, ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 6kA - Aire acondicionado C7 DX3',    p:7.44, ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases cocina C8 DX3',        p:4.05, ref:''},
+    {d:'Magnetotermico 1P+N 16A Curva C 6kA - Bases banyo C9 DX3',         p:4.05, ref:''},
+  ],
+  solera: [
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases adicionales C6 Solera', p:4.13, ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 4,5kA - Aire acondicionado C7 Solera',p:6.61, ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases cocina C8 Solera',      p:4.13, ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases banyo C9 Solera',       p:4.13, ref:''},
+  ],
+  gewiss: [
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases adicionales C6 Gewiss', p:4.13, ref:''},
+    {d:'Magnetotermico 2P 25A Curva C 4,5kA - Aire acondicionado C7 Gewiss',p:6.61, ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases cocina C8 Gewiss',      p:4.13, ref:''},
+    {d:'Magnetotermico 1P 16A Curva C 4,5kA - Bases banyo C9 Gewiss',       p:4.13, ref:''},
+  ],
+};
+
+// Mecanismos: cantidades orientativas para vivienda 80-100m2
+const MEC_ITEMS = [
+  {label:'Interruptor simple',  cant:6},
+  {label:'Conmutador',          cant:8},
+  {label:'Enchufe schuko',      cant:16},
+  {label:'Enchufe doble schuko',cant:4},
+  {label:'Marco 1 elemento',    cant:6},
+  {label:'Marco 2 elementos',   cant:6},
+  {label:'Marco 3 elementos',   cant:4},
+];
+
+const MEC = {
+  simon: {
+    marca: 'Simon 82',
+    items: [
+      {d:'Interruptor unipolar 10A 250V tecla ancha - encender/apagar 1 punto Simon 82', p:10.74},
+      {d:'Conmutador 10A 250V - control luz desde 2 puntos Simon 82',                    p:10.74},
+      {d:'Base enchufe 2P+TT schuko 16A 250V con proteccion infantil Simon 82',          p:9.09},
+      {d:'Base enchufe doble 2P+TT 16A 250V - 2 enchufes en 1 hueco Simon 82',          p:15.70},
+      {d:'Marco embellecedor 1 elemento acabado platino Simon 82',                        p:4.96},
+      {d:'Marco embellecedor 2 elementos acabado platino Simon 82',                       p:7.44},
+      {d:'Marco embellecedor 3 elementos acabado platino Simon 82',                       p:9.92},
+    ]
+  },
+  legrand_mec: {
+    marca: 'Legrand Celiane',
+    items: [
+      {d:'Interruptor unipolar 10A 250V - encender/apagar 1 punto Legrand Celiane',      p:6.61},
+      {d:'Conmutador 10A 250V - control luz desde 2 puntos Legrand Celiane',             p:6.61},
+      {d:'Base enchufe 2P+TT schuko 16A con tapa Legrand Celiane',                       p:5.79},
+      {d:'Base enchufe doble 2P+TT 16A - 2 enchufes en 1 hueco Legrand Celiane',        p:9.92},
+      {d:'Marco embellecedor 1 elemento blanco o titanio Legrand Celiane',               p:3.31},
+      {d:'Marco embellecedor 2 elementos Legrand Celiane',                               p:4.96},
+      {d:'Marco embellecedor 3 elementos Legrand Celiane',                               p:6.61},
+    ]
+  },
+  solera_mec: {
+    marca: 'Solera Galea',
+    items: [
+      {d:'Interruptor unipolar 10A 250V - encender/apagar 1 punto Solera Galea',         p:2.48},
+      {d:'Conmutador 10A 250V - control luz desde 2 puntos Solera Galea',                p:2.48},
+      {d:'Base enchufe 2P+TT schuko 16A Solera Galea',                                   p:2.07},
+      {d:'Base enchufe doble 2P+TT 16A Solera Galea',                                    p:3.31},
+      {d:'Marco embellecedor 1 elemento blanco Solera Galea',                            p:0.99},
+      {d:'Marco embellecedor 2 elementos blanco Solera Galea',                           p:1.65},
+      {d:'Marco embellecedor 3 elementos blanco Solera Galea',                           p:2.07},
+    ]
+  },
+};
+
+const CABLE = {
+  prysmian: [
+    {d:'Cable H07Z1-K libre halogenos 1,5mm2 azul neutro - C1 Iluminacion Prysmian',        p:0.60, u:'metro', cant:150},
+    {d:'Cable H07Z1-K libre halogenos 1,5mm2 marron fase - C1 Iluminacion Prysmian',        p:0.60, u:'metro', cant:150},
+    {d:'Cable H07Z1-K libre halogenos 1,5mm2 verde/amarillo tierra - C1 Prysmian',          p:0.60, u:'metro', cant:150},
+    {d:'Cable H07Z1-K libre halogenos 2,5mm2 azul neutro - C2/C5 Bases Prysmian',           p:0.87, u:'metro', cant:200},
+    {d:'Cable H07Z1-K libre halogenos 2,5mm2 marron fase - C2/C5 Bases Prysmian',           p:0.87, u:'metro', cant:200},
+    {d:'Cable H07Z1-K libre halogenos 2,5mm2 verde/amarillo tierra - C2/C5 Prysmian',       p:0.87, u:'metro', cant:200},
+    {d:'Cable H07Z1-K libre halogenos 4mm2 azul neutro - C4 Lavadora Prysmian',             p:1.31, u:'metro', cant:25},
+    {d:'Cable H07Z1-K libre halogenos 4mm2 marron fase - C4 Lavadora Prysmian',             p:1.31, u:'metro', cant:25},
+    {d:'Cable H07Z1-K libre halogenos 6mm2 azul neutro - C3 Cocina Prysmian',               p:1.90, u:'metro', cant:20},
+    {d:'Cable H07Z1-K libre halogenos 6mm2 marron fase - C3 Cocina Prysmian',               p:1.90, u:'metro', cant:20},
+    {d:'Tubo corrugado doble capa 20mm - para cable 1,5 y 2,5mm2 Prysmian',                 p:0.50, u:'metro', cant:350},
+    {d:'Tubo corrugado doble capa 25mm - para cable 4 y 6mm2 Prysmian',                     p:0.68, u:'metro', cant:60},
+  ],
+  topcable: [
+    {d:'Cable H07V-K PVC 1,5mm2 azul neutro - C1 Iluminacion Top Cable',                    p:0.35, u:'metro', cant:150},
+    {d:'Cable H07V-K PVC 1,5mm2 marron fase - C1 Iluminacion Top Cable',                    p:0.35, u:'metro', cant:150},
+    {d:'Cable H07V-K PVC 1,5mm2 verde/amarillo tierra - C1 Top Cable',                      p:0.35, u:'metro', cant:150},
+    {d:'Cable H07V-K PVC 2,5mm2 azul neutro - C2/C5 Bases Top Cable',                       p:0.54, u:'metro', cant:200},
+    {d:'Cable H07V-K PVC 2,5mm2 marron fase - C2/C5 Bases Top Cable',                       p:0.54, u:'metro', cant:200},
+    {d:'Cable H07V-K PVC 2,5mm2 verde/amarillo tierra - C2/C5 Top Cable',                   p:0.54, u:'metro', cant:200},
+    {d:'Cable H07V-K PVC 4mm2 azul neutro - C4 Lavadora Top Cable',                         p:0.81, u:'metro', cant:25},
+    {d:'Cable H07V-K PVC 4mm2 marron fase - C4 Lavadora Top Cable',                         p:0.81, u:'metro', cant:25},
+    {d:'Cable H07V-K PVC 6mm2 azul neutro - C3 Cocina Top Cable',                           p:1.16, u:'metro', cant:20},
+    {d:'Cable H07V-K PVC 6mm2 marron fase - C3 Cocina Top Cable',                           p:1.16, u:'metro', cant:20},
+    {d:'Tubo corrugado simple capa 20mm - economico',                                        p:0.29, u:'metro', cant:350},
+    {d:'Tubo corrugado simple capa 25mm - economico',                                        p:0.40, u:'metro', cant:60},
+  ],
+};
+
+const MO = [
+  {t:'Mano de Obra', d:'Cuadro electrico completo instalado IGA+diferencial+PIAs+cableado interno', cant:1, p:330.58, u:'ud'},
+  {t:'Varios',       d:'Certificado instalacion electrica (CIE) tramitacion oficial obligatoria',   cant:1, p:206.61, u:'ud'},
+];
+
+// ── Estado ──────────────────────────────────────────────────────────────────
+let tipoElec = 'basica';
+
+function setElec(t) {
+  tipoElec = t;
+  document.getElementById('btn-basica').className  = t === 'basica'
+    ? 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-blue-600 bg-blue-600 text-white transition'
+    : 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 bg-white text-gray-600 hover:border-blue-300 transition';
+  document.getElementById('btn-elevada').className = t === 'elevada'
+    ? 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-blue-600 bg-blue-600 text-white transition'
+    : 'flex-1 py-2 rounded-lg text-sm font-medium border-2 border-gray-200 bg-white text-gray-600 hover:border-blue-300 transition';
+  recalcular();
+}
+
+function nombreAuto() {
+  const prot  = document.getElementById('sel-prot').selectedOptions[0].text.split('—')[0].trim();
+  const mec   = document.getElementById('sel-mec').selectedOptions[0].text.split('(')[0].trim();
+  const elec  = tipoElec === 'basica' ? 'Electrificacion Basica' : 'Electrificacion Elevada';
+  return `Cuadro ${elec} — Prot. ${prot} / Mec. ${mec}`;
+}
+
+function recalcular() {
+  const pKey  = document.getElementById('sel-prot').value;
+  const mKey  = document.getElementById('sel-mec').value;
+  const cKey  = document.getElementById('sel-cable').value;
+  const incMO = document.getElementById('chk-mo').checked;
+
+  const lineas = construirLineas(pKey, mKey, cKey, incMO);
+
+  // Actualizar nombre si no fue tocado manualmente
+  const ni = document.getElementById('nombrePlantilla');
+  if (!ni.dataset.manual) ni.value = nombreAuto();
+
+  // Renderizar tabla
+  const tbody = document.getElementById('previewBody');
+  tbody.innerHTML = '';
+  let base = 0;
+  lineas.forEach(l => {
+    const sub = l.cant * l.p;
+    base += sub;
+    const tc = l.t === 'Material' ? 'tipo-Material' : l.t === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50';
+    tr.innerHTML = `
+      <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${l.t === 'Mano de Obra' ? 'M.O.' : l.t}</span></td>
+      <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="${l.d}">${l.d}</td>
+      <td class="px-3 py-2 text-right text-gray-500">${l.cant}</td>
+      <td class="px-3 py-2 text-gray-400">${l.u}</td>
+      <td class="px-3 py-2 text-right font-medium">${l.p.toFixed(2)} €</td>
+      <td class="px-3 py-2 text-right font-semibold text-blue-700">${sub.toFixed(2)} €</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const iva   = base * 0.21;
+  const total = base + iva;
+  const fmt = v => v.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('resBase').textContent  = fmt(base);
+  document.getElementById('resIva').textContent   = fmt(iva);
+  document.getElementById('resTotal').textContent = fmt(total);
+
+  // Preview protecciones
+  const pp = document.getElementById('preview-prot');
+  pp.innerHTML = PROT[pKey].slice(0,3).map(i => `<div class="truncate">· ${i.d.split(' - ')[0]}</div>`).join('') +
+    `<div class="text-gray-400">… y ${PROT[pKey].length - 3} más</div>`;
+}
+
+function construirLineas(pKey, mKey, cKey, incMO) {
+  const lineas = [];
+
+  // Protecciones base
+  PROT[pKey].forEach(i => lineas.push({t:'Material', d:i.d, cant:1, p:i.p, u:'ud', ref:i.ref||''}));
+  // Extra elevada
+  if (tipoElec === 'elevada' && PROT_EXTRA[pKey]) {
+    PROT_EXTRA[pKey].forEach(i => lineas.push({t:'Material', d:i.d, cant:1, p:i.p, u:'ud', ref:i.ref||''}));
+  }
+
+  // Mecanismos
+  const mecData = MEC[mKey];
+  MEC_ITEMS.forEach((mi, idx) => {
+    const item = mecData.items[idx];
+    if (!item) return;
+    lineas.push({t:'Material', d:item.d, cant:mi.cant, p:item.p, u:'ud', ref:''});
+  });
+
+  // Cable y tubo
+  CABLE[cKey].forEach(i => lineas.push({t:'Material', d:i.d, cant:i.cant, p:i.p, u:i.u, ref:''}));
+
+  // Mano de obra
+  if (incMO) MO.forEach(i => lineas.push({t:i.t, d:i.d, cant:i.cant, p:i.p, u:i.u, ref:''}));
+
+  return lineas;
+}
+
+// Detectar edición manual del nombre
+document.getElementById('nombrePlantilla').addEventListener('input', function() {
+  this.dataset.manual = '1';
+});
+
+// ── Crear plantilla ─────────────────────────────────────────────────────────
+async function crearPlantilla() {
+  const nombre = document.getElementById('nombrePlantilla').value.trim();
+  if (!nombre) { toast('Pon un nombre a la plantilla', 'err'); return; }
+
+  const pKey  = document.getElementById('sel-prot').value;
+  const mKey  = document.getElementById('sel-mec').value;
+  const cKey  = document.getElementById('sel-cable').value;
+  const incMO = document.getElementById('chk-mo').checked;
+  const lineas = construirLineas(pKey, mKey, cKey, incMO);
+
+  try {
+    // 1. Crear la plantilla
+    const pt = await api('POST', '/api/plantillas/', {
+      nombre,
+      categoria:    'Electricidad',
+      notas:        `Instalacion electrica vivienda — ${tipoElec === 'basica' ? 'Electrificacion Basica' : 'Electrificacion Elevada'}. Precios sin IVA Malaga 2025/26.`,
+      iva:          21,
+      descuento:    0,
+      validez_dias: 30,
+    });
+
+    // 2. Añadir las líneas en bulk
+    const payload = lineas.map((l, i) => ({
+      tipo:            l.t,
+      descripcion:     l.d,
+      cantidad:        l.cant,
+      precio_unitario: l.p,
+      unidad:          l.u,
+      referencia:      l.ref || null,
+      orden:           i,
+    }));
+    await api('POST', `/api/plantillas/${pt.id}/lineas/bulk`, payload);
+
+    toast('Plantilla creada');
+    setTimeout(() => window.location = `/plantillas/${pt.id}`, 700);
+  } catch(err) { toast(err.message, 'err'); }
+}
+
+// Inicializar
+recalcular();
+</script>
+{% endblock %}
