@@ -5,6 +5,14 @@
 {% block content %}
 <div class="flex items-center justify-between mb-6">
   <h1 class="text-2xl font-bold text-gray-800">Plantillas de presupuesto</h1>
+  <a href="/api/plantillas/plantilla-excel"
+    class="border border-green-600 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+    📥 Plantilla Excel
+  </a>
+  <label class="cursor-pointer border border-blue-500 text-blue-700 hover:bg-blue-50 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+    📊 Importar plantillas
+    <input type="file" id="excelInput" accept=".xlsx,.xls" class="hidden" onchange="importarPlantillas(this)"/>
+  </label>
   <button onclick="openModal()"
     class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
     + Nueva plantilla
@@ -142,6 +150,25 @@
 {% block scripts %}
 <script>
   let usarPlantillaId = null;
+
+  // ── Importar plantillas desde Excel ──────────────────────────────────────
+  async function importarPlantillas(input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('archivo', input.files[0]);
+    input.value = '';
+    toast('Importando plantilla...', 'ok');
+    try {
+      const r = await fetch('/api/plantillas/importar-excel', {
+        method: 'POST', credentials: 'include', body: fd
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || 'Error al importar');
+      toast(`${data.importadas} plantilla(s) importada(s)`);
+      if (data.errores && data.errores.length) console.warn(data.errores);
+      if (data.importadas > 0) setTimeout(() => location.reload(), 1000);
+    } catch(err) { toast(err.message, 'err'); }
+  }
 
   function openModal() { document.getElementById('modal').classList.remove('hidden'); }
   function closeModal() { document.getElementById('modal').classList.add('hidden'); }
