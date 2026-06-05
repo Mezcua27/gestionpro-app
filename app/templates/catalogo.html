@@ -14,6 +14,10 @@
       📊 Importar Excel
       <input type="file" id="excelInput" accept=".xlsx,.xls" class="hidden" onchange="importarExcel(this)"/>
     </label>
+    <button onclick="vaciarCatalogo()"
+      class="border border-red-300 text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1">
+      🗑 Vaciar catálogo
+    </button>
     <button onclick="openModal()"
       class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
       + Nuevo ítem
@@ -395,6 +399,20 @@
   function verFoto(src) {
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightbox').classList.remove('hidden');
+  }
+
+  // ── Vaciar catálogo ───────────────────────────────────────────────────────
+
+  async function vaciarCatalogo() {
+    const total = document.querySelectorAll('.item-row').length || document.querySelectorAll('.item-card').length;
+    if (total === 0) { toast('El catálogo ya está vacío', 'err'); return; }
+    if (!confirm(`¿Seguro que quieres eliminar TODOS los ítems del catálogo (${total} productos)?\n\nEsta acción no se puede deshacer.`)) return;
+    if (!confirm('⚠️ Confirmación final: se borrarán TODOS los productos permanentemente. ¿Continuar?')) return;
+    try {
+      await api('DELETE', '/api/catalogo/vaciar');
+      toast('Catálogo vaciado');
+      setTimeout(() => location.reload(), 800);
+    } catch(err) { toast(err.message, 'err'); }
   }
 
   // ── Importar Excel ───────────────────────────────────────────────────────

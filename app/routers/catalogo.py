@@ -55,6 +55,26 @@ def actualizar(id: int, data: schemas.CatalogoItemCreate, request: Request, db: 
     return item
 
 
+@router.delete("/vaciar")
+def vaciar_catalogo(request: Request, db: Session = Depends(get_db)):
+    """Elimina permanentemente todos los ítems del catálogo de la empresa."""
+    user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
+    items = db.query(models.CatalogoItem).filter(
+        models.CatalogoItem.empresa_id == eid
+    ).all()
+    eliminados = 0
+    for item in items:
+        if item.foto:
+            foto_path = os.path.join(UPLOAD_DIR, item.foto)
+            if os.path.exists(foto_path):
+                os.remove(foto_path)
+        db.delete(item)
+        eliminados += 1
+    db.commit()
+    return {"ok": True, "eliminados": eliminados}
+
+
 @router.delete("/{id}")
 def eliminar(id: int, request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
