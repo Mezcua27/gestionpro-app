@@ -27,7 +27,9 @@
     <tbody id="tbody" class="divide-y divide-gray-50">
       {% for c in clientes %}
       <tr data-nombre="{{ c.nombre|lower }}" data-email="{{ (c.email or '')|lower }}" class="hover:bg-gray-50">
-        <td class="px-4 py-3 font-medium text-gray-800">{{ c.nombre }}</td>
+        <td class="px-4 py-3 font-medium">
+  <a href="/clientes/{{ c.id }}" class="text-blue-600 hover:underline">{{ c.nombre }}</a>
+</td>
         <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">{{ c.email or '—' }}</td>
         <td class="px-4 py-3 text-gray-500 hidden md:table-cell">{{ c.telefono or '—' }}</td>
         <td class="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">{{ c.nif or '—' }}</td>
