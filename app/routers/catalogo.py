@@ -203,11 +203,15 @@ def auto_foto(id: int, request: Request, db: Session = Depends(get_db)):
     desc = desc.replace('×', 'x').replace('Ø', '').replace('²', '2').replace('³', '3')
     desc = _re.sub(r'\d+x\d+\s*mm', '', desc).strip()
     marca = item.marca or ""
+    ref = item.referencia or ""
     queries = [
+        f"{marca} {ref}".strip() if ref else None,
+        f"{marca} {desc} {ref}".strip() if ref else None,
         f"{marca} {desc} producto".strip(),
         f"{desc} electrico".strip(),
         desc,
     ]
+    queries = [q for q in queries if q]  # eliminar None y vacíos
     url = None
     for q in queries:
         if q:
