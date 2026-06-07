@@ -179,6 +179,19 @@ def catalogo_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("catalogo.html", {"request": request, "user": user, "items": items, "empresa_vista": empresa_vista})
 
 
+@app.get("/clientes", response_class=HTMLResponse)
+def clientes_page(request: Request, db: Session = Depends(get_db)):
+    user = _user_or_redirect(request, db)
+    if not user:
+        return RedirectResponse(url="/login")
+    eid = get_effective_empresa_id(user, request)
+    empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
+    lista = db.query(models.Cliente).filter(
+        models.Cliente.empresa_id == eid, models.Cliente.activo == True
+    ).order_by(models.Cliente.nombre).all()
+    return templates.TemplateResponse("clientes.html", {"request": request, "user": user, "clientes": lista, "empresa_vista": empresa_vista})
+
+
 @app.get("/clientes/{id}", response_class=HTMLResponse)
 def cliente_detail_page(id: int, request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
