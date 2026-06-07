@@ -111,51 +111,78 @@ def _barra(texto: str, color, ancho, st) -> Table:
 
 def _agrupar_lineas(lineas):
     """
-    Detecta líneas que actúan como cabecera de capítulo:
-      - tipo vacío o 'Grupo' / 'Capítulo'
-      - descripción en MAYÚSCULAS con precio=0 y cantidad=0
+    Agrupa líneas por capítulo para el PDF.
+
+    Prioridad:
+      1. Campo `capitulo` en cada línea  →  sistema nuevo.
+      2. Líneas-cabecera implícitas      →  compatibilidad con presupuestos
+                                            creados antes de la migración.
     """
-    grupos = []
-    actual = {"titulo": None, "lineas": []}
+    # ── 1. Sistema nuevo: campo `capitulo` ────────────────────────────────────
+    usa_capitulo = any(getattr(l, "capitulo", None) for l in lineas)
+
+    if usa_capitulo:
+        grupos: list = []
+        cap_actual = "__INIT__"
+        lineas_actual: list = []
+
+        for l in lineas:
+            cap = (getattr(l, "capitulo", None) or "").strip()
+            if cap != cap_actual:
+                if cap_actual != "__INIT__":
+                    grupos.append({
+                        "titulo": cap_actual or None,
+                        "lineas": lineas_actual,
+                    })
+                cap_actual = cap
+                lineas_actual = [l]
+            else:
+                lineas_actual.append(l)
+
+        if cap_actual != "__INIT__":
+            grupos.append({
+                "titulo": cap_actual or None,
+                "lineas": lineas_actual,
+            })
+
+        if len(grupos) == 1 and not grupos[0]["titulo"]:
+            return [{"titulo": None, "lineas": lineas}]
+
+        return grupos
+
+    # ── 2. Sistema legacy: cabeceras implícitas ───────────────────────────────
+    grupos_legacy: list = []
+    actual: dict = {"titulo": None, "lineas": []}
 
     for l in lineas:
         tipo = (l.tipo or "").strip()
         desc = (l.descripcion or "").strip()
         es_cabecera = (
             tipo in ("", "Grupo", "Capítulo", "capitulo", "grupo")
-            or (desc == desc.upper() and len(desc) > 3
+            or (
+                desc == desc.upper()
+                and len(desc) > 3
                 and (l.precio_unitario or 0) == 0
-                and (l.cantidad or 0) == 0)
+                and (l.cantidad or 0) == 0
+            )
         )
         if es_cabecera:
             if actual["lineas"] or actual["titulo"]:
-                grupos.append(actual)
+                grupos_legacy.append(actual)
             actual = {"titulo": desc, "lineas": []}
         else:
             actual["lineas"].append(l)
 
     if actual["lineas"] or actual["titulo"]:
-        grupos.append(actual)
+        grupos_legacy.append(actual)
 
-    # Sin agrupación real → devolver tal cual
-    if len(grupos) == 1 and not grupos[0]["titulo"]:
+    if len(grupos_legacy) == 1 and not grupos_legacy[0]["titulo"]:
         return [{"titulo": None, "lineas": lineas}]
-    return grupos
+
+    return grupos_legacy
 
 
 def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
-    """
-    Parámetros
-    ----------
-    presupuesto : models.Presupuesto
-    empresa     : models.Empresa
-    cliente     : models.Cliente | None
-    static_dir  : ruta a app/static  (para cargar el logo)
-                  Pasa BASE_DIR desde main.py:
-                  from app.pdf_generator import generar_pdf
-                  pdf = generar_pdf(p, empresa, cliente,
-                                    static_dir=os.path.join(BASE_DIR, "static"))
-    """
     buf    = BytesIO()
     CORP   = _corp(empresa)
     CORP_C = _corp_claro(CORP)
@@ -175,7 +202,6 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     # ── CABECERA ──────────────────────────────────────────────────────────────
     izq = []
 
-    # Logo — guardado como data URI en PostgreSQL
     logo_field = getattr(empresa, "logo", None)
     if logo_field and logo_field.startswith("data:"):
         try:
@@ -188,7 +214,7 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
             tmp.flush()
             tmp.close()
             img = Image(tmp.name)
-            img._restrictSize(W * 0.40, 20 * mm)  # fuerza la carga y limita tamaño
+            img._restrictSize(W * 0.40, 20 * mm)
             img.drawHeight = min(img.drawHeight, 14 * mm)
             img.drawWidth  = img.drawWidth * (img.drawHeight / max(img.drawHeight, 0.1))
             izq.append(img)
@@ -228,7 +254,6 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     story.append(cab)
     story.append(Spacer(1, 4 * mm))
 
-    # Badge estado
     badge = Table([[Paragraph(presupuesto.estado.upper(), st["EstadoBadge"])]], colWidths=[28 * mm])
     badge.setStyle(TableStyle([
         ("BACKGROUND",    (0, 0), (0, 0), _estado_color(presupuesto.estado)),
@@ -279,7 +304,6 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     story.append(_barra("DETALLE DEL PRESUPUESTO", CORP, W, st))
     story.append(Spacer(1, 1 * mm))
 
-    # Tipo | Descripción+Ref | Cant | Ud | P.Unit | Total
     CW = [W*0.10, W*0.44, W*0.07, W*0.07, W*0.14, W*0.16]
 
     datos = [[
@@ -302,14 +326,12 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
 
     grupos   = _agrupar_lineas(presupuesto.lineas)
     hay_grps = any(g["titulo"] for g in grupos)
-    subtots  = []
-    ri       = 1  # row index (0 = header)
+    ri       = 1
 
     for grupo in grupos:
         titulo = grupo["titulo"]
         lins   = grupo["lineas"]
 
-        # Fila de cabecera de capítulo
         if hay_grps and titulo:
             datos.append([
                 Paragraph("", st["TablaCell"]),
@@ -320,11 +342,11 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
                 Paragraph("", st["TablaCell"]),
             ])
             estilo += [
-                ("BACKGROUND", (0, ri), (-1, ri), CORP_C),
-                ("TOPPADDING", (0, ri), (-1, ri), 5),
+                ("BACKGROUND",    (0, ri), (-1, ri), CORP_C),
+                ("TOPPADDING",    (0, ri), (-1, ri), 5),
                 ("BOTTOMPADDING", (0, ri), (-1, ri), 5),
-                ("LINEABOVE",  (0, ri), (-1, ri), 0.5, CORP),
-                ("SPAN",       (0, ri), (-1, ri)),
+                ("LINEABOVE",     (0, ri), (-1, ri), 0.5, CORP),
+                ("SPAN",          (0, ri), (-1, ri)),
             ]
             ri += 1
 
@@ -358,9 +380,7 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
             ]
             ri += 1
 
-        # Fila subtotal del capítulo
         if hay_grps and titulo and lins:
-            subtots.append((titulo, subtotal))
             datos.append([
                 Paragraph("", st["TablaCell"]),
                 Paragraph("", st["TablaCell"]),
@@ -394,7 +414,7 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     story.append(Spacer(1, 4 * mm))
 
     # ── TOTALES ───────────────────────────────────────────────────────────────
-    total_base  = sum(
+    total_base = sum(
         (l.cantidad or 0) * (l.precio_unitario or 0)
         for l in presupuesto.lineas
         if not ((l.tipo or "") in ("", "Grupo", "Capítulo")
@@ -447,18 +467,14 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
     ]))
     story.append(tf)
 
-    # ── NOTAS Y CONDICIONES GENERALES ────────────────────────────────────────
-    notas            = (presupuesto.notas or "").strip()
-    condiciones      = (getattr(empresa, "condiciones_generales", None) or "").strip()
-    texto_notas      = notas
-    if condiciones:
-        texto_notas  = (notas + "\n\n" + condiciones) if notas else condiciones
+    # ── NOTAS Y CONDICIONES ───────────────────────────────────────────────────
+    notas       = (presupuesto.notas or "").strip()
+    condiciones = (getattr(empresa, "condiciones_generales", None) or "").strip()
 
-    if texto_notas:
+    if notas or condiciones:
         story.append(Spacer(1, 5 * mm))
         story.append(_barra("NOTAS Y CONDICIONES", GRIS_OSCURO, W, st))
         story.append(Spacer(1, 2 * mm))
-        # Si hay notas propias y condiciones, mostrarlas separadas
         celdas = []
         if notas:
             celdas.append(Paragraph(notas, st["Notas"]))
@@ -467,11 +483,8 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
             celdas.append(HRFlowable(width=W - 16, color=GRIS_LINEA, thickness=0.5))
             celdas.append(Spacer(1, 4))
         if condiciones:
-            celdas.append(Paragraph(
-                "<b>Condiciones generales:</b>",
-                ParagraphStyle("CG", fontSize=8, textColor=GRIS_OSCURO,
-                               fontName="Helvetica-Bold", leading=12)
-            ))
+            celdas.append(Paragraph("<b>Condiciones generales:</b>",
+                ParagraphStyle("CG", fontSize=8, textColor=GRIS_OSCURO, fontName="Helvetica-Bold", leading=12)))
             celdas.append(Spacer(1, 3))
             celdas.append(Paragraph(condiciones, st["Notas"]))
         nt = Table([celdas], colWidths=[W])
@@ -505,22 +518,14 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
             [Paragraph(f"Fecha: {fecha_acept}", st["FirmaLabel"])],
         ], colWidths=[W * 0.40])
 
-    firma = Table(
-        [[
-            _bloque_firma(
-                "Conforme — Firma del cliente",
-                cliente.nombre if cliente else "",
-                f"NIF/CIF: {cliente.nif}" if cliente and cliente.nif else "",
-            ),
-            Spacer(W * 0.05, 1),
-            _bloque_firma(
-                f"Por {empresa.nombre}",
-                empresa.nombre,
-                f"NIF: {empresa.nif}" if empresa.nif else "",
-            ),
-        ]],
-        colWidths=[W * 0.45, W * 0.10, W * 0.45]
-    )
+    firma = Table([[
+        _bloque_firma("Conforme — Firma del cliente",
+            cliente.nombre if cliente else "",
+            f"NIF/CIF: {cliente.nif}" if cliente and cliente.nif else ""),
+        Spacer(W * 0.05, 1),
+        _bloque_firma(f"Por {empresa.nombre}", empresa.nombre,
+            f"NIF: {empresa.nif}" if empresa.nif else ""),
+    ]], colWidths=[W * 0.45, W * 0.10, W * 0.45])
     firma.setStyle(TableStyle([
         ("VALIGN",       (0, 0), (-1, -1), "TOP"),
         ("BACKGROUND",   (0, 0), (0, 0), GRIS_CLARO),
