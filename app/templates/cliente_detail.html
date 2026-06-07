@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+{% set active = "clientes" %}
+{% block title %}{{ c.nombre }}{% endblock %}
+
+{% block content %}
+
+{% set total_base = namespace(v=0) %}
+{% set total_aceptado = namespace(v=0) %}
+{% set num_aceptados = namespace(v=0) %}
+{% for p in presupuestos %}
+  {% set base = namespace(v=0) %}
+  {% for l in p.lineas %}{% set base.v = base.v + l.cantidad * l.precio_unitario %}{% endfor %}
+  {% set importe = base.v * (1 - p.descuento/100) * (1 + p.iva/100) %}
+  {% set total_base.v = total_base.v + importe %}
+  {% if p.estado == 'aceptado' %}
+    {% set total_aceptado.v = total_aceptado.v + importe %}
+    {% set num_aceptados.v = num_aceptados.v + 1 %}
+  {% endif %}
+{% endfor %}
+
+<!-- Cabecera -->
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+  <div>
+    <a href="/clientes" class="text-sm text-gray-400 hover:text-gray-600">← Clientes</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-1">{{ c.nombre }}</h1>
+    {% if c.nif %}<p class="text-sm text-gray-400 font-mono">NIF: {{ c.nif }}</p>{% endif %}
+  </div>
+  <div class="flex gap-2">
+    <button onclick="openEditModal()"
+      class="border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg text-sm font-medium transition">
+      ✏ Editar cliente
+    </button>
+    <a href="/presupuestos"
+      onclick="sessionStorage.setItem('filtroCliente','{{ c.id }}')"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+      + Nuevo presupuesto
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Columna izquierda -->
+  <div class="space-y-5">
+
+    <!-- Datos del cliente -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-4">👤 Datos de contacto</h2>
+      <div class="space-y-3 text-sm">
+        {% if c.email %}
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 w-5 text-center">✉️</span>
+          <a href="mailto:{{ c.email }}" class="text-blue-600 hover:underline">{{ c.email }}</a>
+        </div>
+        {% endif %}
+        {% if c.telefono %}
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 w-5 text-center">📞</span>
+          <a href="tel:{{ c.telefono }}" class="text-gray-700">{{ c.telefono }}</a>
+        </div>
+        {% endif %}
+        {% if c.direccion %}
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 w-5 text-center">📍</span>
+          <span class="text-gray-700">{{ c.direccion }}</span>
+        </div>
+        {% endif %}
+        {% if c.nif %}
+        <div class="flex items-center gap-3">
+          <span class="text-gray-400 w-5 text-center">🪪</span>
+          <span class="text-gray-700 font-mono">{{ c.nif }}</span>
+        </div>
+        {% endif %}
+        {% if not c.email and not c.telefono and not c.direccion and not c.nif %}
+        <p class="text-gray-400 text-xs">Sin datos de contacto. <button onclick="openEditModal()" class="text-blue-500 hover:underline">Añadir</button></p>
+        {% endif %}
+      </div>
+      <div class="mt-4 pt-4 border-t text-xs text-gray-400">
+        Cliente desde {{ c.created_at.strftime('%d/%m/%Y') if c.created_at else '—' }}
+      </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <h2 class="font-semibold text-gray-700 mb-4">📊 Resumen</h2>
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500">Presupuestos totales</span>
+          <span class="text-sm font-bold text-gray-800">{{ presupuestos | length }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500">Aceptados</span>
+          <span class="text-sm font-bold text-green-600">{{ num_aceptados.v }}</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-sm text-gray-500">Tasa de conversión</span>
+          <span class="text-sm font-bold text-blue-600">
+            {% if presupuestos | length > 0 %}
+              {{ "%.0f" | format(num_aceptados.v / (presupuestos | length) * 100) }}%
+            {% else %}—{% endif %}
+          </span>
+        </div>
+        <div class="border-t pt-3">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-500">Total facturado</span>
+            <span class="text-sm font-bold text-gray-800">{{ "%.2f" | format(total_aceptado.v) }} €</span>
+          </div>
+          <div class="flex justify-between items-center mt-1">
+            <span class="text-xs text-gray-400">Total presupuestado</span>
+            <span class="text-xs text-gray-400">{{ "%.2f" | format(total_base.v) }} €</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notas internas -->
+    <div class="bg-white rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-gray-700">📝 Notas internas</h2>
+        <button onclick="guardarNotas()" id="btnGuardarNotas"
+          class="hidden text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition">
+          Guardar
+        </button>
+      </div>
+      <textarea id="notasCliente" rows="5"
+        placeholder="Notas internas sobre este cliente (no visibles para él)..."
+        class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none text-gray-700"
+        oninput="document.getElementById('btnGuardarNotas').classList.remove('hidden')">{{ c.notas or '' }}</textarea>
+      <p class="text-xs text-gray-400 mt-1">Solo visible para tu equipo</p>
+    </div>
+
+  </div>
+
+  <!-- Columna derecha: historial de presupuestos -->
+  <div class="lg:col-span-2">
+    <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b">
+        <h2 class="font-semibold text-gray-700">📄 Historial de presupuestos</h2>
+        <span class="text-xs text-gray-400">{{ presupuestos | length }} presupuesto{{ 's' if presupuestos | length != 1 }}</span>
+      </div>
+
+      {% if presupuestos %}
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b">
+          <tr class="text-left text-gray-400">
+            <th class="px-4 py-3 font-medium">Número</th>
+            <th class="px-4 py-3 font-medium">Título</th>
+            <th class="px-4 py-3 font-medium text-right">Importe</th>
+            <th class="px-4 py-3 font-medium">Estado</th>
+            <th class="px-4 py-3 font-medium hidden md:table-cell">Fecha</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-50">
+          {% for p in presupuestos %}
+          {% set base = namespace(v=0) %}
+          {% for l in p.lineas %}{% set base.v = base.v + l.cantidad * l.precio_unitario %}{% endfor %}
+          {% set total = base.v * (1 - p.descuento/100) * (1 + p.iva/100) %}
+          <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='/presupuestos/{{ p.id }}'">
+            <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ p.numero }}</td>
+            <td class="px-4 py-3 font-medium text-blue-600 hover:underline">{{ p.titulo }}</td>
+            <td class="px-4 py-3 text-right font-semibold text-gray-800">{{ "%.2f"|format(total) }} €</td>
+            <td class="px-4 py-3">
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium badge-{{ p.estado }}">{{ p.estado }}</span>
+            </td>
+            <td class="px-4 py-3 text-gray-400 hidden md:table-cell">{{ p.fecha.strftime('%d/%m/%Y') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <!-- Totales al pie -->
+      <div class="px-5 py-3 bg-gray-50 border-t flex flex-wrap justify-end gap-6 text-sm">
+        <span class="text-gray-500">Total presupuestado: <strong class="text-gray-700">{{ "%.2f"|format(total_base.v) }} €</strong></span>
+        <span class="text-gray-500">Total facturado (aceptados): <strong class="text-green-700">{{ "%.2f"|format(total_aceptado.v) }} €</strong></span>
+      </div>
+
+      {% else %}
+      <div class="px-5 py-16 text-center text-gray-400">
+        <div class="text-4xl mb-3">📄</div>
+        <p class="font-medium">Sin presupuestos todavía</p>
+        <p class="text-sm mt-1">Crea el primer presupuesto para este cliente.</p>
+        <a href="/presupuestos"
+          class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition">
+          + Nuevo presupuesto
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal editar cliente -->
+<div id="editModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+    <h3 class="text-lg font-bold text-gray-800 mb-4">Editar cliente</h3>
+    <form id="editForm" class="space-y-3">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+        <input type="text" id="eNombre" required value="{{ c.nombre }}"
+          class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" id="eEmail" value="{{ c.email or '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+          <input type="tel" id="eTel" value="{{ c.telefono or '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">NIF / CIF</label>
+          <input type="text" id="eNif" value="{{ c.nif or '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+          <input type="text" id="eDir" value="{{ c.direccion or '' }}"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeEditModal()"
+          class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
+        <button type="submit"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const CLIENTE_ID = {{ c.id }};
+
+  function openEditModal() { document.getElementById('editModal').classList.remove('hidden'); }
+  function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+  document.getElementById('editForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const body = {
+      nombre:    document.getElementById('eNombre').value,
+      email:     document.getElementById('eEmail').value || null,
+      telefono:  document.getElementById('eTel').value || null,
+      nif:       document.getElementById('eNif').value || null,
+      direccion: document.getElementById('eDir').value || null,
+    };
+    try {
+      await api('PUT', `/api/clientes/${CLIENTE_ID}`, body);
+      toast('Cliente actualizado');
+      closeEditModal();
+      setTimeout(() => location.reload(), 600);
+    } catch(err) { toast(err.message, 'err'); }
+  });
+
+  async function guardarNotas() {
+    const notas = document.getElementById('notasCliente').value || null;
+    try {
+      await api('PUT', `/api/clientes/${CLIENTE_ID}`, { notas });
+      toast('Notas guardadas');
+      document.getElementById('btnGuardarNotas').classList.add('hidden');
+    } catch(err) { toast(err.message, 'err'); }
+  }
+
+  document.getElementById('editModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('editModal')) closeEditModal();
+  });
+</script>
+{% endblock %}
