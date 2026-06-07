@@ -260,7 +260,10 @@
   async function guardarNotas() {
     const notas = document.getElementById('notasCliente').value || null;
     try {
-      await api('PUT', `/api/clientes/${CLIENTE_ID}`, { notas });
+      await api('PUT', `/api/clientes/${CLIENTE_ID}`, {
+        nombre: {{ c.nombre|tojson }},
+        notas
+      });
       toast('Notas guardadas');
       document.getElementById('btnGuardarNotas').classList.add('hidden');
     } catch(err) { toast(err.message, 'err'); }
