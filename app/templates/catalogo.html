@@ -31,7 +31,6 @@
   <button onclick="filtrar('Material')" id="f-Material" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Material</button>
   <button onclick="filtrar('Mano de Obra')" id="f-MO" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Mano de Obra</button>
   <button onclick="filtrar('Varios')" id="f-Varios" class="filter-btn px-3 py-1.5 rounded-lg text-sm border border-gray-300 bg-white hover:bg-gray-50">Varios</button>
-  <!-- Filtro por marca -->
   <select id="f-marca" onchange="aplicarFiltros()" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 bg-white">
     <option value="">Todas las marcas</option>
     {% set marcas = [] %}
@@ -42,7 +41,6 @@
   </select>
   <input type="search" id="buscar" placeholder="Buscar producto, marca..." oninput="aplicarFiltros()"
     class="ml-auto border border-gray-300 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-400 w-48"/>
-  <!-- Toggle vista -->
   <div class="flex border border-gray-300 rounded-lg overflow-hidden">
     <button onclick="setVista('tabla')" id="btn-tabla" class="px-3 py-1.5 text-sm bg-blue-600 text-white">☰</button>
     <button onclick="setVista('tarjetas')" id="btn-tarjetas" class="px-3 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-50">⊞</button>
@@ -88,13 +86,14 @@
         <td class="px-4 py-3 text-right font-semibold text-gray-700">{{ "%.2f"|format(item.precio_unitario) }} €</td>
         <td class="px-4 py-3 text-gray-500">{{ item.unidad }}</td>
         <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button onclick="autoFoto({{ item.id }}, this)" class="text-gray-400 hover:text-purple-500 mr-1" title="Buscar foto automáticamente">🔍</button>
           <button onclick="openFotoModal({{ item.id }})" class="text-gray-400 hover:text-blue-500 mr-1" title="Cambiar foto">📷</button>
           <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "marca": item.marca, "referencia": item.referencia}|tojson }})' class="text-blue-500 hover:text-blue-700 mr-1">✏</button>
           <button onclick="deleteItem({{ item.id }}, this)" class="text-red-400 hover:text-red-600">✕</button>
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="px-4 py-10 text-center text-gray-400">Sin ítems. Añade uno o importa desde Excel.</td></tr>
+      <tr><td colspan="8" class="px-4 py-10 text-center text-gray-400">Sin ítems. Añade uno o importa desde Excel.</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -106,7 +105,6 @@
     {% for item in items %}
     <div data-tipo="{{ item.tipo }}" data-desc="{{ item.descripcion|lower }}" data-marca="{{ (item.marca or '')|lower }}" data-id="{{ item.id }}"
       class="bg-white rounded-xl shadow-sm overflow-hidden group item-card">
-      <!-- Imagen -->
       <div class="aspect-square bg-gray-100 relative overflow-hidden">
         {% if item.foto %}
         <img src="/static/uploads/catalogo/{{ item.foto }}" alt="{{ item.descripcion }}"
@@ -119,19 +117,17 @@
           <span class="text-xs mt-1">Añadir foto</span>
         </div>
         {% endif %}
-        <!-- Badge tipo -->
         <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded text-xs font-medium
           {% if item.tipo == 'Material' %}tipo-Material
           {% elif item.tipo == 'Mano de Obra' %}tipo-MO
           {% else %}tipo-Varios{% endif %}">{{ item.tipo }}</span>
-        <!-- Acciones hover -->
         <div class="absolute top-2 right-2 hidden group-hover:flex gap-1">
+          <button onclick="autoFoto({{ item.id }}, this)" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Buscar foto">🔍</button>
           <button onclick="openFotoModal({{ item.id }})" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Foto">📷</button>
           <button onclick='editItem({{ item.id }}, {{ {"tipo": item.tipo, "descripcion": item.descripcion, "precio_unitario": item.precio_unitario, "unidad": item.unidad, "marca": item.marca, "referencia": item.referencia}|tojson }})' class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow" title="Editar">✏</button>
           <button onclick="deleteItem({{ item.id }}, this)" class="bg-white/90 rounded p-1 text-sm hover:bg-white shadow text-red-500" title="Eliminar">✕</button>
         </div>
       </div>
-      <!-- Info -->
       <div class="p-3">
         <p class="text-sm font-medium text-gray-800 truncate" title="{{ item.descripcion }}">{{ item.descripcion }}</p>
         <p class="text-xs font-medium text-gray-500 mt-0.5">{{ item.marca or '' }}</p>
@@ -193,7 +189,6 @@
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
     <h3 class="text-lg font-bold text-gray-800 mb-4">Foto del producto</h3>
     <input type="hidden" id="fotoItemId"/>
-    <!-- Preview -->
     <div id="fotoPreviewWrap" class="mb-4 hidden">
       <img id="fotoPreview" src="" alt="" class="w-full h-48 object-cover rounded-xl border border-gray-200"/>
     </div>
@@ -210,7 +205,7 @@
   </div>
 </div>
 
-<!-- Lightbox foto -->
+<!-- Lightbox -->
 <div id="lightbox" class="fixed inset-0 z-[100] hidden bg-black/80 flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
   <img id="lightboxImg" src="" alt="" class="max-w-full max-h-full rounded-xl shadow-2xl"/>
 </div>
@@ -220,8 +215,6 @@
 <script>
   let tipoActivo = 'todos';
   let vistaActual = 'tabla';
-
-  // ── Vista ────────────────────────────────────────────────────────────────
 
   function setVista(v) {
     vistaActual = v;
@@ -234,8 +227,6 @@
       ? 'px-3 py-1.5 text-sm bg-blue-600 text-white'
       : 'px-3 py-1.5 text-sm bg-white text-gray-600 hover:bg-gray-50';
   }
-
-  // ── Filtros ──────────────────────────────────────────────────────────────
 
   function filtrar(tipo) {
     tipoActivo = tipo;
@@ -256,8 +247,6 @@
       el.style.display = matchTipo && matchMarca && matchQ ? '' : 'none';
     });
   }
-
-  // ── Modal ítem ───────────────────────────────────────────────────────────
 
   function openModal(reset = true) {
     if (reset) {
@@ -319,8 +308,7 @@
     if (e.target === document.getElementById('modal')) closeModal();
   });
 
-  // ── Modal foto ───────────────────────────────────────────────────────────
-
+  // ── Foto manual ───────────────────────────────────────────────────────────
   function openFotoModal(itemId) {
     document.getElementById('fotoItemId').value = itemId;
     document.getElementById('fotoFileInput').value = '';
@@ -333,10 +321,9 @@
 
   function previewFoto(input) {
     if (!input.files[0]) return;
-    const wrap = document.getElementById('fotoPreviewWrap');
     const img = document.getElementById('fotoPreview');
     img.src = URL.createObjectURL(input.files[0]);
-    wrap.classList.remove('hidden');
+    document.getElementById('fotoPreviewWrap').classList.remove('hidden');
   }
 
   async function subirFoto() {
@@ -344,65 +331,66 @@
     const file = document.getElementById('fotoFileInput').files[0];
     const errEl = document.getElementById('fotoError');
     errEl.classList.add('hidden');
-
     if (!file) { errEl.textContent = 'Selecciona una imagen primero.'; errEl.classList.remove('hidden'); return; }
-
     const fd = new FormData();
     fd.append('foto', file);
-
     const btn = document.getElementById('fotoBtn');
-    btn.textContent = 'Subiendo...';
-    btn.disabled = true;
-
+    btn.textContent = 'Subiendo...'; btn.disabled = true;
     try {
-      const r = await fetch(`/api/catalogo/${id}/foto`, {
-        method: 'POST', credentials: 'include', body: fd
-      });
-      if (!r.ok) {
-        const d = await r.json();
-        throw new Error(d.detail || 'Error al subir');
-      }
+      const r = await fetch(`/api/catalogo/${id}/foto`, { method: 'POST', credentials: 'include', body: fd });
+      if (!r.ok) { const d = await r.json(); throw new Error(d.detail || 'Error al subir'); }
       const data = await r.json();
-      // Actualizar imágenes en la página sin recargar
       document.querySelectorAll(`[data-id="${id}"]`).forEach(el => {
         const imgs = el.querySelectorAll('img');
-        if (imgs.length) {
-          imgs[0].src = data.foto + '?t=' + Date.now();
-        } else {
-          // Reemplazar placeholder
+        if (imgs.length) { imgs[0].src = data.foto + '?t=' + Date.now(); }
+        else {
           const ph = el.querySelector('.text-gray-300, .text-4xl');
           if (ph) {
             const wrap = ph.closest('div');
-            if (wrap) {
-              wrap.innerHTML = `<img src="${data.foto}" class="w-full h-full object-cover" onclick="verFoto('${data.foto}')"/>`;
-            }
+            if (wrap) wrap.innerHTML = `<img src="${data.foto}" class="w-full h-full object-cover" onclick="verFoto('${data.foto}')"/>`;
           }
         }
       });
       closeFotoModal();
       toast('Foto actualizada');
-    } catch(err) {
-      errEl.textContent = err.message;
-      errEl.classList.remove('hidden');
-    } finally {
-      btn.textContent = 'Subir foto';
-      btn.disabled = false;
-    }
+    } catch(err) { errEl.textContent = err.message; errEl.classList.remove('hidden'); }
+    finally { btn.textContent = 'Subir foto'; btn.disabled = false; }
   }
 
   document.getElementById('fotoModal').addEventListener('click', e => {
     if (e.target === document.getElementById('fotoModal')) closeFotoModal();
   });
 
-  // ── Lightbox ─────────────────────────────────────────────────────────────
+  // ── Auto foto (DuckDuckGo → guardada en servidor) ─────────────────────────
+  async function autoFoto(id, btn) {
+    const orig = btn.textContent;
+    btn.textContent = '⏳'; btn.disabled = true;
+    try {
+      const r = await api('POST', `/api/catalogo/${id}/auto-foto`);
+      document.querySelectorAll(`[data-id="${id}"]`).forEach(el => {
+        const img = el.querySelector('img');
+        if (img) {
+          img.src = r.foto + '?t=' + Date.now();
+        } else {
+          const ph = el.querySelector('.text-gray-300, .text-4xl');
+          if (ph) {
+            const wrap = ph.closest('div');
+            if (wrap) wrap.innerHTML = `<img src="${r.foto}" class="w-full h-full object-cover rounded-lg cursor-pointer" onclick="verFoto('${r.foto}')"/>`;
+          }
+        }
+      });
+      toast('✓ Foto guardada en el servidor');
+    } catch(err) { toast(err.message || 'No se encontró imagen', 'err'); }
+    finally { btn.textContent = orig; btn.disabled = false; }
+  }
 
+  // ── Lightbox ──────────────────────────────────────────────────────────────
   function verFoto(src) {
     document.getElementById('lightboxImg').src = src;
     document.getElementById('lightbox').classList.remove('hidden');
   }
 
   // ── Vaciar catálogo ───────────────────────────────────────────────────────
-
   async function vaciarCatalogo() {
     const total = document.querySelectorAll('.item-row').length || document.querySelectorAll('.item-card').length;
     if (total === 0) { toast('El catálogo ya está vacío', 'err'); return; }
@@ -415,27 +403,19 @@
     } catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Importar Excel ───────────────────────────────────────────────────────
-
+  // ── Importar Excel ────────────────────────────────────────────────────────
   async function importarExcel(input) {
     if (!input.files[0]) return;
     const fd = new FormData();
     fd.append('archivo', input.files[0]);
     input.value = '';
-
     toast('Importando...', 'ok');
     try {
-      const r = await fetch('/api/catalogo/importar-excel', {
-        method: 'POST', credentials: 'include', body: fd
-      });
+      const r = await fetch('/api/catalogo/importar-excel', { method: 'POST', credentials: 'include', body: fd });
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || 'Error al importar');
-
-      let msg = data.mensaje;
-      if (data.errores && data.errores.length) {
-        console.warn('Errores de importación:', data.errores);
-      }
-      toast(msg);
+      if (data.errores && data.errores.length) console.warn('Errores de importación:', data.errores);
+      toast(data.mensaje);
       if (data.importados > 0) setTimeout(() => location.reload(), 1200);
     } catch(err) { toast(err.message, 'err'); }
   }
