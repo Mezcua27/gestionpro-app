@@ -334,8 +334,8 @@ def generar_pdf(presupuesto, empresa, cliente, static_dir: str = None) -> bytes:
 
         if hay_grps and titulo:
             datos.append([
-                Paragraph("", st["TablaCell"]),
                 Paragraph(titulo, st["GrupoTitulo"]),
+                Paragraph("", st["TablaCell"]),
                 Paragraph("", st["TablaCell"]),
                 Paragraph("", st["TablaCell"]),
                 Paragraph("", st["TablaCell"]),
