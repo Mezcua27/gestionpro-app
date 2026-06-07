@@ -343,49 +343,85 @@ function nombreAuto() {
   return `Cuadro ${elec} — Prot. ${prot} / Mec. ${mec}`;
 }
 
+let lineasActuales = [];
+
 function recalcular() {
   const pKey  = document.getElementById('sel-prot').value;
   const mKey  = document.getElementById('sel-mec').value;
   const cKey  = document.getElementById('sel-cable').value;
   const incMO = document.getElementById('chk-mo').checked;
 
-  const lineas = construirLineas(pKey, mKey, cKey, incMO);
+  lineasActuales = construirLineas(pKey, mKey, cKey, incMO);
 
   // Actualizar nombre si no fue tocado manualmente
   const ni = document.getElementById('nombrePlantilla');
   if (!ni.dataset.manual) ni.value = nombreAuto();
 
-  // Renderizar tabla
+  // Renderizar tabla con inputs editables en cantidad
   const tbody = document.getElementById('previewBody');
   tbody.innerHTML = '';
-  let base = 0;
-  lineas.forEach(l => {
+  lineasActuales.forEach((l, idx) => {
+    const tc  = l.t === 'Material' ? 'tipo-Material' : l.t === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
     const sub = l.cant * l.p;
-    base += sub;
-    const tc = l.t === 'Material' ? 'tipo-Material' : l.t === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+    // Cantidades fijas (1 ud) no necesitan edición — resaltamos en amarillo las que son metros/horas
+    const editable = l.u !== 'ud';
     const tr = document.createElement('tr');
     tr.className = 'hover:bg-gray-50';
+    tr.dataset.idx = idx;
+    tr.dataset.precio = l.p;
     tr.innerHTML = `
-      <td class="px-3 py-2"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${l.t === 'Mano de Obra' ? 'M.O.' : l.t}</span></td>
-      <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="${l.d}">${l.d}</td>
-      <td class="px-3 py-2 text-right text-gray-500">${l.cant}</td>
-      <td class="px-3 py-2 text-gray-400">${l.u}</td>
-      <td class="px-3 py-2 text-right font-medium">${l.p.toFixed(2)} €</td>
-      <td class="px-3 py-2 text-right font-semibold text-blue-700">${sub.toFixed(2)} €</td>`;
+      <td class="px-3 py-2 shrink-0"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${l.t === 'Mano de Obra' ? 'M.O.' : l.t}</span></td>
+      <td class="px-3 py-2 text-gray-700 text-xs max-w-xs" style="max-width:320px">
+        <span class="line-clamp-2" title="${l.d}">${l.d}</span>
+      </td>
+      <td class="px-3 py-2 text-right">
+        <input type="number" min="0" step="${l.u === 'ud' ? 1 : 0.5}" value="${l.cant}"
+          data-idx="${idx}"
+          oninput="actualizarFila(this)"
+          class="w-16 text-right border rounded px-1 py-0.5 text-xs outline-none focus:ring-2 focus:ring-blue-400
+            ${editable ? 'border-yellow-300 bg-yellow-50 font-semibold' : 'border-gray-200'}"/>
+      </td>
+      <td class="px-3 py-2 text-gray-400 text-xs">${l.u}</td>
+      <td class="px-3 py-2 text-right text-xs font-medium">${l.p.toFixed(2)} €</td>
+      <td class="px-3 py-2 text-right text-xs font-semibold text-blue-700 subtotal-cell">${sub.toFixed(2)} €</td>`;
     tbody.appendChild(tr);
   });
 
-  const iva   = base * 0.21;
-  const total = base + iva;
-  const fmt = v => v.toFixed(2).replace('.', ',') + ' €';
-  document.getElementById('resBase').textContent  = fmt(base);
-  document.getElementById('resIva').textContent   = fmt(iva);
-  document.getElementById('resTotal').textContent = fmt(total);
+  recalcularTotales();
 
   // Preview protecciones
   const pp = document.getElementById('preview-prot');
   pp.innerHTML = PROT[pKey].slice(0,3).map(i => `<div class="truncate">· ${i.d.split(' - ')[0]}</div>`).join('') +
     `<div class="text-gray-400">… y ${PROT[pKey].length - 3} más</div>`;
+}
+
+function actualizarFila(input) {
+  const idx    = parseInt(input.dataset.idx);
+  const cant   = parseFloat(input.value) || 0;
+  const precio = lineasActuales[idx].p;
+  const sub    = cant * precio;
+  // Actualizar celda de subtotal en la misma fila
+  const tr = input.closest('tr');
+  tr.querySelector('.subtotal-cell').textContent = sub.toFixed(2) + ' €';
+  // Actualizar el valor en el array
+  lineasActuales[idx].cant = cant;
+  recalcularTotales();
+}
+
+function recalcularTotales() {
+  let base = 0;
+  document.querySelectorAll('#previewBody tr').forEach((tr, i) => {
+    const input = tr.querySelector('input[type=number]');
+    const cant  = parseFloat(input?.value || 0);
+    const p     = lineasActuales[i]?.p || 0;
+    base += cant * p;
+  });
+  const iva   = base * 0.21;
+  const total = base + iva;
+  const fmt   = v => v.toFixed(2).replace('.', ',') + ' €';
+  document.getElementById('resBase').textContent  = fmt(base);
+  document.getElementById('resIva').textContent   = fmt(iva);
+  document.getElementById('resTotal').textContent = fmt(total);
 }
 
 function construirLineas(pKey, mKey, cKey, incMO) {
@@ -425,11 +461,13 @@ async function crearPlantilla() {
   const nombre = document.getElementById('nombrePlantilla').value.trim();
   if (!nombre) { toast('Pon un nombre a la plantilla', 'err'); return; }
 
-  const pKey  = document.getElementById('sel-prot').value;
-  const mKey  = document.getElementById('sel-mec').value;
-  const cKey  = document.getElementById('sel-cable').value;
-  const incMO = document.getElementById('chk-mo').checked;
-  const lineas = construirLineas(pKey, mKey, cKey, incMO);
+  // Leer cantidades actuales del DOM (pueden haber sido editadas)
+  document.querySelectorAll('#previewBody tr').forEach((tr, i) => {
+    const input = tr.querySelector('input[type=number]');
+    if (input && lineasActuales[i]) {
+      lineasActuales[i].cant = parseFloat(input.value) || 0;
+    }
+  });
 
   try {
     // 1. Crear la plantilla
@@ -443,7 +481,7 @@ async function crearPlantilla() {
     });
 
     // 2. Añadir las líneas en bulk
-    const payload = lineas.map((l, i) => ({
+    const payload = lineasActuales.filter(l => l.cant > 0).map((l, i) => ({
       tipo:            l.t,
       descripcion:     l.d,
       cantidad:        l.cant,
