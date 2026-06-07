@@ -200,14 +200,22 @@ def auto_foto(id: int, request: Request, db: Session = Depends(get_db)):
 
     import re as _re
     desc = _re.sub(r'\([^)]+\)', '', item.descripcion or '').strip()
+    desc = desc.replace('×', 'x').replace('Ø', '').replace('²', '2').replace('³', '3')
+    desc = _re.sub(r'\d+x\d+\s*mm', '', desc).strip()
     marca = item.marca or ""
-    query = f"{desc} {marca} producto eléctrico".strip()
-
-    url = _buscar_url_imagen(query)
+    queries = [
+        f"{marca} {desc} producto".strip(),
+        f"{desc} electrico".strip(),
+        desc,
+    ]
+    url = None
+    for q in queries:
+        if q:
+            url = _buscar_url_imagen(q)
+            if url:
+                break
     if not url:
-        url = _buscar_url_imagen(f"{desc} {marca}".strip())
-    if not url:
-        raise HTTPException(status_code=404, detail="No se encontró imagen para este producto")
+        raise HTTPException(status_code=404, detail="No se encontro imagen para este producto")
 
     ext = "png" if ".png" in url.lower() else ("webp" if ".webp" in url.lower() else "jpg")
     nombre = f"{eid}_{id}_{uuid.uuid4().hex[:8]}.{ext}"
