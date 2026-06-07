@@ -103,6 +103,7 @@ class LineaCreate(BaseModel):
     unidad: Optional[str] = "ud"
     referencia: Optional[str] = None
     orden: int = 0
+    capitulo: Optional[str] = None   # ← añadir
 
 
 class LineaUpdate(BaseModel):
@@ -112,7 +113,7 @@ class LineaUpdate(BaseModel):
     precio_unitario: Optional[float] = None
     unidad: Optional[str] = None
     referencia: Optional[str] = None
-
+    capitulo: Optional[str] = None   # ← añadir
 
 class LineaResponse(BaseModel):
     id: int
@@ -123,6 +124,7 @@ class LineaResponse(BaseModel):
     unidad: Optional[str] = "ud"
     referencia: Optional[str] = None
     orden: int
+    capitulo: Optional[str] = None   # ← añadir
 
     class Config:
         from_attributes = True

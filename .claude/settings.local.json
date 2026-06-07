@@ -5,7 +5,20 @@
       "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\templates\")",
       "PowerShell(New-Item -ItemType Directory -Force -Path \"C:\\\\Users\\\\Mezcua\\\\Desktop\\\\EMPRESA\\\\APP_IA\\\\app\\\\static\")",
       "PowerShell(npm install -g @railway/cli 2>&1)",
-      "PowerShell($body = '{\"nombre\":\"Mezcua\",\"email\":\"alejandromezcuamerino@gmail.com\",\"password\":\"Apocalipsi14.\"}'; $r = Invoke-WebRequest -Uri \"https://web-production-13f9c.up.railway.app/api/superadmin/setup\" -Method POST -Body $body -ContentType \"application/json\" -UseBasicParsing; Write-Host $r.StatusCode; Write-Host $r.Content)"
+      "PowerShell($body = '{\"nombre\":\"Mezcua\",\"email\":\"alejandromezcuamerino@gmail.com\",\"password\":\"Apocalipsi14.\"}'; $r = Invoke-WebRequest -Uri \"https://web-production-13f9c.up.railway.app/api/superadmin/setup\" -Method POST -Body $body -ContentType \"application/json\" -UseBasicParsing; Write-Host $r.StatusCode; Write-Host $r.Content)",
+      "Bash(python -c \"from app.main import app; print\\('OK'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(python -m py_compile app/models.py app/schemas.py app/routers/plantillas.py app/main.py)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(python -m py_compile app/routers/catalogo.py app/templates/catalogo.html)",
+      "Bash(python -m py_compile app/routers/catalogo.py)",
+      "Read(//c/Users/Mezcua/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/0c333d0b-5a45-46d6-a887-7de72f0c7718/6b8c9dc7-7af0-481e-ba7a-b3095aec9d8b/skills/xlsx/**)",
+      "Bash(python -)",
+      "Bash(python generar_plantillas.py)",
+      "Bash(python -m py_compile app/routers/plantillas.py)",
+      "Bash(python -m py_compile app/main.py)"
     ]
   }
 }
