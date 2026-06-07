@@ -293,7 +293,67 @@ def descargar_plantilla():
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=plantilla_catalogo.xlsx"}
     )
+@router.post("/actualizar-precios")
+async def actualizar_precios(request: Request, archivo: UploadFile = File(...), db: Session = Depends(get_db)):
+    """Actualiza precio_coste y precio_unitario de productos existentes por referencia o descripción."""
+    try:
+        import openpyxl
+        from io import BytesIO
+    except ImportError:
+        raise HTTPException(status_code=500, detail="openpyxl no instalado.")
 
+    user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
+
+    contenido = await archivo.read()
+    wb = openpyxl.load_workbook(BytesIO(contenido), data_only=True)
+    ws = wb.active
+    rows = list(ws.iter_rows(values_only=True))
+    if not rows:
+        raise HTTPException(status_code=400, detail="Archivo vacío.")
+
+    header = [str(c).strip().lower() if c else "" for c in rows[0]]
+    col = {h: i for i, h in enumerate(header)}
+
+    actualizados = 0
+    errores = []
+
+    for n, row in enumerate(rows[1:], 2):
+        if not any(row):
+            continue
+        # Buscar por referencia primero, luego por descripción
+        item = None
+        if "referencia" in col and row[col["referencia"]]:
+            ref = str(row[col["referencia"]]).strip()
+            item = db.query(models.CatalogoItem).filter(
+                models.CatalogoItem.empresa_id == eid,
+                models.CatalogoItem.referencia == ref,
+                models.CatalogoItem.activo == True
+            ).first()
+        if not item and "descripcion" in col and row[col["descripcion"]]:
+            desc = str(row[col["descripcion"]]).strip().lower()
+            item = db.query(models.CatalogoItem).filter(
+                models.CatalogoItem.empresa_id == eid,
+                models.CatalogoItem.activo == True
+            ).filter(models.CatalogoItem.descripcion.ilike(desc)).first()
+        if not item:
+            errores.append(f"Fila {n}: producto no encontrado.")
+            continue
+        if "precio_coste" in col and row[col["precio_coste"]] is not None:
+            try: item.precio_coste = float(row[col["precio_coste"]])
+            except: pass
+        if "precio_unitario" in col and row[col["precio_unitario"]] is not None:
+            try: item.precio_unitario = float(row[col["precio_unitario"]])
+            except: pass
+        actualizados += 1
+
+    db.commit()
+    return {
+        "ok": True,
+        "actualizados": actualizados,
+        "errores": errores,
+        "mensaje": f"{actualizados} precios actualizados." + (f" {len(errores)} no encontrados." if errores else "")
+    }
 
 @router.post("/importar-excel")
 async def importar_excel(request: Request, archivo: UploadFile = File(...), db: Session = Depends(get_db)):

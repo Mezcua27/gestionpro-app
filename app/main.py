@@ -46,6 +46,7 @@ with engine.connect() as conn:
     _add_col("plantillas_presupuesto", "descripcion",           "VARCHAR")
     _add_col("lineas_presupuesto",     "capitulo",              "VARCHAR")
     _add_col("lineas_plantilla",       "capitulo",              "VARCHAR")
+    _add_col("catalogo", "precio_coste", "REAL", "FLOAT")
 
     # Generar token_cliente para presupuestos existentes sin token
     import secrets as _secrets

@@ -47,16 +47,17 @@ class CatalogoItemCreate(BaseModel):
     tipo: Literal["Material", "Mano de Obra", "Varios"]
     descripcion: str
     precio_unitario: float = 0.0
+    precio_coste: float = 0.0      # ← AÑADIR
     unidad: str = "ud"
     referencia: Optional[str] = None
     marca: Optional[str] = None
-
 
 class CatalogoItemResponse(BaseModel):
     id: int
     tipo: str
     descripcion: str
     precio_unitario: float
+    precio_coste: float = 0.0      # ← AÑADIR
     unidad: str
     referencia: Optional[str]
     marca: Optional[str] = None

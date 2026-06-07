@@ -48,6 +48,7 @@ class CatalogoItem(Base):
     tipo = Column(String, nullable=False)  # Material | Mano de Obra | Varios
     descripcion = Column(String, nullable=False)
     precio_unitario = Column(Float, default=0.0)
+    precio_coste = Column(Float, default=0.0, nullable=True)    # ← AÑADIR
     unidad = Column(String, default="ud")
     referencia = Column(String)
     marca = Column(String, nullable=True)
