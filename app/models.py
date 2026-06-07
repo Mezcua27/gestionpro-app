@@ -132,6 +132,7 @@ class LineaPlantilla(Base):
     precio_unitario = Column(Float, default=0.0)
     unidad = Column(String, default="ud", nullable=True)
     referencia = Column(String, nullable=True)
+    capitulo = Column(String, nullable=True)          # ← NUEVO
     orden = Column(Integer, default=0)
 
     plantilla = relationship("PlantillaPresupuesto", back_populates="lineas")
@@ -161,6 +162,7 @@ class LineaPresupuesto(Base):
     precio_unitario = Column(Float, default=0.0)
     unidad = Column(String, default="ud", nullable=True)
     referencia = Column(String, nullable=True)
+    capitulo = Column(String, nullable=True)          # ← NUEVO
     orden = Column(Integer, default=0)
 
     presupuesto = relationship("Presupuesto", back_populates="lineas")
