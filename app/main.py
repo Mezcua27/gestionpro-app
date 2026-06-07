@@ -44,6 +44,8 @@ with engine.connect() as conn:
     _add_col("lineas_presupuesto",   "referencia",              "VARCHAR")
     _add_col("plantillas_presupuesto", "categoria",             "VARCHAR")
     _add_col("plantillas_presupuesto", "descripcion",           "VARCHAR")
+    _add_col("lineas_presupuesto",     "capitulo",              "VARCHAR")
+    _add_col("lineas_plantilla",       "capitulo",              "VARCHAR")
 
     # Generar token_cliente para presupuestos existentes sin token
     import secrets as _secrets
@@ -177,18 +179,27 @@ def catalogo_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("catalogo.html", {"request": request, "user": user, "items": items, "empresa_vista": empresa_vista})
 
 
-@app.get("/clientes", response_class=HTMLResponse)
-def clientes_page(request: Request, db: Session = Depends(get_db)):
+@app.get("/clientes/{id}", response_class=HTMLResponse)
+def cliente_detail_page(id: int, request: Request, db: Session = Depends(get_db)):
     user = _user_or_redirect(request, db)
     if not user:
         return RedirectResponse(url="/login")
     eid = get_effective_empresa_id(user, request)
     empresa_vista = db.query(models.Empresa).filter(models.Empresa.id == eid).first() if user.rol == "superadmin" else None
-    lista = db.query(models.Cliente).filter(
-        models.Cliente.empresa_id == eid, models.Cliente.activo == True
-    ).order_by(models.Cliente.nombre).all()
-    return templates.TemplateResponse("clientes.html", {"request": request, "user": user, "clientes": lista, "empresa_vista": empresa_vista})
-
+    c = db.query(models.Cliente).filter(
+        models.Cliente.id == id,
+        models.Cliente.empresa_id == eid
+    ).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Cliente no encontrado")
+    presupuestos = db.query(models.Presupuesto).filter(
+        models.Presupuesto.cliente_id == id,
+        models.Presupuesto.empresa_id == eid
+    ).order_by(models.Presupuesto.created_at.desc()).all()
+    return templates.TemplateResponse("cliente_detail.html", {
+        "request": request, "user": user, "empresa_vista": empresa_vista,
+        "c": c, "presupuestos": presupuestos,
+    })
 
 @app.get("/presupuestos", response_class=HTMLResponse)
 def presupuestos_page(request: Request, db: Session = Depends(get_db)):
