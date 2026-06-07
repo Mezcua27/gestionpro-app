@@ -150,6 +150,79 @@ def eliminar_foto(id: int, request: Request, db: Session = Depends(get_db)):
         db.commit()
     return {"ok": True}
 
+# ── Auto foto (buscar y guardar imagen localmente) ───────────────────────────
+
+def _buscar_url_imagen(query: str):
+    try:
+        try:
+            from ddgs import DDGS
+        except ImportError:
+            from duckduckgo_search import DDGS
+        with DDGS() as ddgs:
+            resultados = list(ddgs.images(query, max_results=5, safesearch="off", type_image="photo"))
+        for r in resultados:
+            url = r.get("image", "")
+            if url and url.startswith("http"):
+                return url
+    except Exception:
+        pass
+    return None
+
+
+def _descargar_imagen(url: str, nombre: str) -> bool:
+    import requests as _req
+    try:
+        r = _req.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10, stream=True)
+        if r.status_code != 200 or "image" not in r.headers.get("content-type", ""):
+            return False
+        ruta = os.path.join(UPLOAD_DIR, nombre)
+        with open(ruta, "wb") as f:
+            for chunk in r.iter_content(65536):
+                f.write(chunk)
+        if os.path.getsize(ruta) < 2000:
+            os.remove(ruta)
+            return False
+        return True
+    except Exception:
+        return False
+
+
+@router.post("/{id}/auto-foto")
+def auto_foto(id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    eid = get_effective_empresa_id(user, request)
+    item = db.query(models.CatalogoItem).filter(
+        models.CatalogoItem.id == id,
+        models.CatalogoItem.empresa_id == eid
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Ítem no encontrado")
+
+    import re as _re
+    desc = _re.sub(r'\([^)]+\)', '', item.descripcion or '').strip()
+    marca = item.marca or ""
+    query = f"{desc} {marca} producto eléctrico".strip()
+
+    url = _buscar_url_imagen(query)
+    if not url:
+        url = _buscar_url_imagen(f"{desc} {marca}".strip())
+    if not url:
+        raise HTTPException(status_code=404, detail="No se encontró imagen para este producto")
+
+    ext = "png" if ".png" in url.lower() else ("webp" if ".webp" in url.lower() else "jpg")
+    nombre = f"{eid}_{id}_{uuid.uuid4().hex[:8]}.{ext}"
+
+    if item.foto:
+        anterior = os.path.join(UPLOAD_DIR, item.foto)
+        if os.path.exists(anterior):
+            os.remove(anterior)
+
+    if not _descargar_imagen(url, nombre):
+        raise HTTPException(status_code=400, detail="No se pudo descargar la imagen encontrada")
+
+    item.foto = nombre
+    db.commit()
+    return {"ok": True, "foto": f"/static/uploads/catalogo/{nombre}"}
 
 # ── Excel ───────────────────────────────────────────────────────────────────
 
