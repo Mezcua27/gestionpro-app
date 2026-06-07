@@ -56,7 +56,7 @@
   <!-- Columna izquierda -->
   <div class="lg:col-span-2 space-y-6">
 
-    <!-- Info del presupuesto -->
+    <!-- Info -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <h2 class="font-semibold text-gray-700 mb-3">Información</h2>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
@@ -74,7 +74,6 @@
             class="w-20 border border-gray-200 rounded-lg px-2 py-1 text-sm font-medium outline-none focus:ring-2 focus:ring-blue-400"
             onchange="guardarCampo('validez_dias', parseInt(this.value))"/>
         </div>
-        <!-- Descuento editable -->
         <div>
           <p class="text-gray-400 mb-1">Descuento (%)</p>
           <div class="flex items-center gap-1">
@@ -84,7 +83,6 @@
             <button id="btnSaveDescuento" onclick="guardarDescuentoIVA()" class="hidden text-xs bg-blue-600 text-white px-2 py-1 rounded">✓</button>
           </div>
         </div>
-        <!-- IVA editable -->
         <div>
           <p class="text-gray-400 mb-1">IVA (%)</p>
           <div class="flex items-center gap-1">
@@ -119,8 +117,7 @@
         </thead>
         <tbody id="lineasBody" class="divide-y divide-gray-50">
           {% for l in p.lineas %}
-          <tr id="linea-{{ l.id }}" class="group hover:bg-gray-50">
-            <!-- Vista -->
+          <tr id="linea-{{ l.id }}" data-capitulo="{{ l.capitulo or '' }}" class="group hover:bg-gray-50">
             <td class="px-3 py-3 view-cell">
               <span class="px-2 py-0.5 rounded-full text-xs font-medium
                 {% if l.tipo=='Material' %}tipo-Material{% elif l.tipo=='Mano de Obra' %}tipo-MO{% else %}tipo-Varios{% endif %}">
@@ -131,7 +128,6 @@
             <td class="px-3 py-3 text-right text-gray-600 view-cell">{{ l.cantidad }}</td>
             <td class="px-3 py-3 text-right text-gray-600 view-cell">{{ "%.2f"|format(l.precio_unitario) }} €</td>
             <td class="px-3 py-3 text-right font-semibold view-cell">{{ "%.2f"|format(l.cantidad * l.precio_unitario) }} €</td>
-            <!-- Edición (oculta) -->
             <td class="px-3 py-1 edit-cell hidden">
               <select class="e-tipo border border-gray-300 rounded px-1 py-1 text-xs outline-none w-28">
                 <option {% if l.tipo=='Material' %}selected{% endif %}>Material</option>
@@ -149,7 +145,6 @@
               <input type="number" class="e-precio border border-gray-300 rounded px-1 py-1 text-xs w-20 text-right outline-none" value="{{ l.precio_unitario }}" step="0.01" min="0"/>
             </td>
             <td class="px-3 py-1 edit-cell hidden"></td>
-            <!-- Acciones -->
             <td class="px-3 py-3 text-right">
               <span class="view-cell flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
                 <button onclick="startEdit({{ l.id }})" class="text-blue-400 hover:text-blue-600 text-xs">✏</button>
@@ -191,11 +186,9 @@
   <!-- Columna derecha -->
   <div class="space-y-4">
 
-    <!-- Seguimiento cliente -->
+    <!-- Seguimiento -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <h2 class="font-semibold text-gray-700 mb-3">👁 Seguimiento</h2>
-
-      <!-- Estado lectura -->
       <div class="space-y-2 text-sm mb-4">
         <div class="flex items-center gap-2">
           {% if p.fecha_lectura %}
@@ -209,14 +202,10 @@
         <div class="flex items-center gap-2">
           {% if p.estado == 'aceptado' %}
           <span class="w-2 h-2 rounded-full bg-green-500 shrink-0"></span>
-          <span class="text-green-700 font-medium">Aceptado
-            {% if p.fecha_aceptacion %}el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}
-          </span>
+          <span class="text-green-700 font-medium">Aceptado{% if p.fecha_aceptacion %} el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}</span>
           {% elif p.estado == 'rechazado' %}
           <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
-          <span class="text-red-600 font-medium">Rechazado
-            {% if p.fecha_aceptacion %}el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}
-          </span>
+          <span class="text-red-600 font-medium">Rechazado{% if p.fecha_aceptacion %} el {{ p.fecha_aceptacion.strftime('%d/%m/%Y %H:%M') }}{% endif %}</span>
           {% elif p.estado == 'anulado' %}
           <span class="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
           <span class="text-gray-500">Anulado por vencimiento</span>
@@ -225,19 +214,11 @@
           <span class="text-gray-400">Pendiente de decisión</span>
           {% endif %}
         </div>
-        <!-- Fecha vencimiento -->
         <div class="flex items-center gap-2 text-xs text-gray-400 border-t pt-2">
           <span>⏰</span>
-          <span>Vence el
-            <strong class="text-gray-600">
-              {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}
-            </strong>
-            ({{ p.validez_dias }} días)
-          </span>
+          <span>Vence el <strong class="text-gray-600">{{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}</strong> ({{ p.validez_dias }} días)</span>
         </div>
       </div>
-
-      <!-- Enlace cliente -->
       <div class="bg-gray-50 rounded-lg p-3">
         <p class="text-xs text-gray-400 mb-1.5 font-medium">Enlace para el cliente:</p>
         <div class="flex gap-2">
@@ -246,23 +227,18 @@
             class="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 bg-white text-gray-600 outline-none min-w-0"/>
           <button onclick="copiarEnlaceCliente()" class="shrink-0 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded transition">Copiar</button>
         </div>
-        <p class="text-xs text-gray-400 mt-1.5">Al abrirlo, el cliente puede aceptar o rechazar el presupuesto.</p>
       </div>
     </div>
 
-    <!-- Historial de cambios -->
+    <!-- Historial -->
     <div class="bg-white rounded-xl shadow-sm p-5">
       <h2 class="font-semibold text-gray-700 mb-4">🕓 Historial</h2>
       <ol class="relative border-l border-gray-200 space-y-4 ml-2">
-
-        <!-- Creado -->
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-blue-500 border-2 border-white"></span>
           <p class="text-xs font-semibold text-gray-700">Presupuesto creado</p>
           <p class="text-xs text-gray-400">{{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '—' }}</p>
         </li>
-
-        <!-- Enviado -->
         {% if p.estado in ['enviado','visto','aceptado','rechazado','anulado'] %}
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-indigo-500 border-2 border-white"></span>
@@ -270,8 +246,6 @@
           <p class="text-xs text-gray-400">Enlace compartido</p>
         </li>
         {% endif %}
-
-        <!-- Leído -->
         {% if p.fecha_lectura %}
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-purple-500 border-2 border-white"></span>
@@ -279,8 +253,6 @@
           <p class="text-xs text-gray-400">{{ p.fecha_lectura.strftime('%d/%m/%Y %H:%M') }}</p>
         </li>
         {% endif %}
-
-        <!-- Aceptado / Rechazado -->
         {% if p.estado == 'aceptado' %}
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-green-500 border-2 border-white"></span>
@@ -297,21 +269,15 @@
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-gray-400 border-2 border-white"></span>
           <p class="text-xs font-semibold text-gray-500">Anulado por vencimiento</p>
-          <p class="text-xs text-gray-400">
-            Venció el {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}
-          </p>
+          <p class="text-xs text-gray-400">Venció el {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}</p>
         </li>
         {% else %}
-        <!-- Pendiente -->
         <li class="ml-4">
           <span class="absolute -left-1.5 w-3 h-3 rounded-full bg-yellow-400 border-2 border-white animate-pulse"></span>
           <p class="text-xs font-semibold text-yellow-600">Pendiente de decisión</p>
-          <p class="text-xs text-gray-400">
-            Vence el {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}
-          </p>
+          <p class="text-xs text-gray-400">Vence el {{ (p.fecha + timedelta(days=p.validez_dias)).strftime('%d/%m/%Y') if p.fecha else '—' }}</p>
         </li>
         {% endif %}
-
       </ol>
     </div>
 
@@ -322,9 +288,7 @@
       <div class="relative">
         <textarea id="aiMsg" rows="4" placeholder="Ej: Añade 3 enchufes a 8€ y 2 horas de mano de obra de oficial a 35€/h"
           class="w-full border border-gray-300 rounded-lg px-3 py-2 pr-12 text-sm outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
-        <!-- Botón micrófono -->
-        <button id="micBtn" onclick="toggleVoz()"
-          title="Hablar"
+        <button id="micBtn" onclick="toggleVoz()" title="Hablar"
           class="absolute bottom-2.5 right-2.5 w-8 h-8 rounded-full bg-gray-100 hover:bg-indigo-100 flex items-center justify-center transition">
           <svg id="micIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
@@ -332,16 +296,17 @@
           </svg>
         </button>
       </div>
-      <!-- Indicador grabando -->
       <div id="micStatus" class="hidden mt-1.5 flex items-center gap-2 text-xs text-red-500 font-medium">
         <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
         Escuchando... habla ahora
         <button onclick="pararVoz()" class="ml-auto text-gray-400 hover:text-gray-600 underline">Parar</button>
       </div>
+      <div class="mt-2">
+        <input type="text" id="aiCapitulo" list="capitulosList" placeholder="Capítulo (opcional, ej: Cuadro eléctrico)"
+          class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-300 text-gray-600"/>
+      </div>
       <div class="flex gap-2 mt-2">
-        <button onclick="limpiarIA()" class="px-3 py-2 border border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">
-          🗑
-        </button>
+        <button onclick="limpiarIA()" class="px-3 py-2 border border-gray-300 text-gray-500 rounded-lg text-sm hover:bg-gray-50 transition">🗑</button>
         <button onclick="procesarIA()" id="aiBtn"
           class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2">
           <span id="aiBtnTxt">Procesar con IA</span>
@@ -362,14 +327,10 @@
 <!-- Modal añadir línea -->
 <div id="lineaModal" class="fixed inset-0 z-50 hidden bg-black/40 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
-
-    <!-- Cabecera -->
     <div class="flex items-center justify-between px-6 py-4 border-b shrink-0">
       <h3 class="text-lg font-bold text-gray-800">Añadir línea</h3>
       <button onclick="closeLineaModal()" class="text-gray-400 hover:text-gray-600 text-xl">✕</button>
     </div>
-
-    <!-- Tabs -->
     <div class="flex border-b shrink-0">
       <button onclick="lineaTab('catalogo')" id="tab-catalogo"
         class="flex-1 py-2.5 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
@@ -383,11 +344,9 @@
 
     <!-- TAB: Catálogo -->
     <div id="pane-catalogo" class="flex flex-col flex-1 min-h-0 p-4">
-      <!-- Buscador -->
       <input type="search" id="catalogoBuscar" placeholder="Buscar producto, marca o referencia..."
         oninput="filtrarCatalogo()"
         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400 mb-2"/>
-      <!-- Filtros -->
       <div class="flex gap-2 mb-3 flex-wrap">
         <select id="filtroTipo" onchange="filtrarCatalogo()"
           class="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-blue-400 bg-white">
@@ -401,15 +360,12 @@
           <option value="">Todas las marcas</option>
         </select>
       </div>
-
-      <!-- Lista de productos -->
-      <div id="catalogoLista" class="overflow-y-auto flex-1 space-y-1.5 min-h-0 max-h-64">
+      <div id="catalogoLista" class="overflow-y-auto flex-1 space-y-1.5 min-h-0 max-h-52">
         <p class="text-sm text-gray-400 text-center py-6">Cargando catálogo...</p>
       </div>
-
-      <!-- Cantidad + botón añadir (aparece al seleccionar) -->
-      <div id="catalogoSeleccion" class="hidden mt-3 pt-3 border-t">
-        <div class="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3 mb-3">
+      <!-- Panel selección: aparece al elegir un item -->
+      <div id="catalogoSeleccion" class="hidden mt-3 pt-3 border-t space-y-3">
+        <div class="flex items-center gap-3 bg-blue-50 rounded-xl px-4 py-3">
           <span id="selTipoTag" class="px-2 py-0.5 rounded-full text-xs font-medium shrink-0"></span>
           <div class="flex-1 min-w-0">
             <p id="selNombre" class="text-sm font-semibold text-gray-800 truncate"></p>
@@ -417,22 +373,28 @@
           </div>
           <span id="selPrecio" class="text-sm font-bold text-blue-700 shrink-0"></span>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="flex-1">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Cantidad</label>
             <input type="number" id="selCantidad" value="1" min="0.01" step="0.01"
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
           </div>
-          <div class="flex-1">
+          <div>
             <label class="block text-xs font-medium text-gray-600 mb-1">Precio unit. €</label>
             <input type="number" id="selPrecioEdit" min="0" step="0.01"
               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
           </div>
-          <button onclick="añadirDesdesCatalogo()"
-            class="mt-5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition shrink-0">
-            Añadir
-          </button>
         </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Capítulo (opcional)</label>
+          <input type="text" id="selCapitulo" list="capitulosList"
+            placeholder="Ej: Cuadro eléctrico, Luminarias…"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
+        <button onclick="añadirDesdesCatalogo()"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition">
+          Añadir al presupuesto
+        </button>
       </div>
     </div>
 
@@ -459,15 +421,35 @@
             <input type="number" id="lPrecio" value="0" min="0" step="0.01" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
           </div>
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Capítulo (opcional)</label>
+          <input type="text" id="lCapitulo" list="capitulosList"
+            placeholder="Ej: Instalación eléctrica, Mano de obra…"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-400"/>
+        </div>
         <div class="flex gap-3 pt-1">
           <button type="button" onclick="closeLineaModal()" class="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 transition">Cancelar</button>
           <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition font-medium">Añadir</button>
         </div>
       </form>
     </div>
-
   </div>
 </div>
+
+<!-- Datalist capítulos eléctricos -->
+<datalist id="capitulosList">
+  <option value="Instalación eléctrica">
+  <option value="Cuadro eléctrico">
+  <option value="Canalización y tubos">
+  <option value="Mecanismos y enchufes">
+  <option value="Luminarias">
+  <option value="Puesta a tierra">
+  <option value="Mano de obra">
+  <option value="Fotovoltaica">
+  <option value="Recarga VE (IRVE)">
+  <option value="Automatización">
+  <option value="Varios">
+</datalist>
 {% endblock %}
 
 {% block scripts %}
@@ -484,6 +466,27 @@
   const TOKEN_CLIENTE  = {{ p.token_cliente|tojson }};
   let lineasIA = [];
 
+  // ── Capítulos ─────────────────────────────────────────────────────────────
+  function groupByCapitulo() {
+    const tbody = document.getElementById('lineasBody');
+    tbody.querySelectorAll('.cap-header').forEach(el => el.remove());
+    const rows = [...tbody.querySelectorAll('tr[id^="linea-"]')];
+    let lastCap = '__NONE__';
+    rows.forEach(row => {
+      const cap = (row.dataset.capitulo || '').trim();
+      if (cap && cap !== lastCap) {
+        const hdr = document.createElement('tr');
+        hdr.className = 'cap-header';
+        hdr.innerHTML = `<td colspan="6" class="px-3 py-1.5 bg-indigo-50 border-t border-indigo-100">
+          <span class="text-xs font-semibold text-indigo-600 uppercase tracking-wide">📁 ${cap}</span></td>`;
+        tbody.insertBefore(hdr, row);
+      }
+      lastCap = cap || '__NONE__';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', groupByCapitulo);
+
   // ── URLs ──────────────────────────────────────────────────────────────────
   function _clienteUrl() { return `${window.location.origin}/ver/${TOKEN_CLIENTE}`; }
   function _pdfUrl()     { return `${window.location.origin}/api/presupuestos/${PRESUPUESTO_ID}/pdf`; }
@@ -499,39 +502,25 @@
     let base = 0;
     document.querySelectorAll('#lineasBody tr[id^="linea-"]').forEach(tr => {
       const vc = [...tr.querySelectorAll('.view-cell')];
-      const cant   = parseFloat(vc[2]?.textContent) || 0;
-      const precio = parseFloat(vc[3]?.textContent) || 0;
-      base += cant * precio;
+      base += (parseFloat(vc[2]?.textContent) || 0) * (parseFloat(vc[3]?.textContent) || 0);
     });
-    const dto   = base * (curDescuento / 100);
-    const total = base - dto + (base - dto) * (curIVA / 100);
-    return total.toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
+    const dto = base * (curDescuento / 100);
+    return (base - dto + (base - dto) * (curIVA / 100)).toLocaleString('es-ES', { minimumFractionDigits: 2 }) + ' €';
   }
 
   function compartirWhatsApp() {
     const total = _calcTotal();
     const cliente = CLIENTE_NOMBRE ? `para *${CLIENTE_NOMBRE}*` : '';
-    const msg = `Hola 👋\n\nTe envío el presupuesto *${PRES_NUMERO}* ${cliente}.\n` +
-                `📋 *${PRES_TITULO}*\n💶 Total: *${total}*\n\n` +
-                `👉 Puedes revisarlo y aceptarlo aquí:\n${_clienteUrl()}\n\n` +
-                `Un saludo,\n*${EMPRESA_NOMBRE}*` + (EMPRESA_TEL ? `\n📞 ${EMPRESA_TEL}` : '');
+    const msg = `Hola 👋\n\nTe envío el presupuesto *${PRES_NUMERO}* ${cliente}.\n📋 *${PRES_TITULO}*\n💶 Total: *${total}*\n\n👉 ${_clienteUrl()}\n\nUn saludo,\n*${EMPRESA_NOMBRE}*` + (EMPRESA_TEL ? `\n📞 ${EMPRESA_TEL}` : '');
     window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
     document.getElementById('shareDropdown').classList.add('hidden');
-    // Marcar como enviado automáticamente
     api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado: 'enviado' }).catch(() => {});
   }
 
   function compartirEmail() {
     const total = _calcTotal();
     const asunto = encodeURIComponent(`Presupuesto ${PRES_NUMERO} - ${PRES_TITULO}`);
-    const cuerpo = encodeURIComponent(
-      `Estimado/a cliente,\n\nAdjunto encontrará el presupuesto ${PRES_NUMERO}.\n\n` +
-      `Concepto: ${PRES_TITULO}\nImporte total: ${total}\n\n` +
-      `Puede revisarlo y aceptarlo o rechazarlo en el siguiente enlace:\n${_clienteUrl()}\n\n` +
-      `Si prefiere el PDF:\n${_pdfUrl()}\n\n` +
-      `Quedamos a su disposición.\n\nUn cordial saludo,\n${EMPRESA_NOMBRE}` +
-      (EMPRESA_TEL ? `\nTel: ${EMPRESA_TEL}` : '')
-    );
+    const cuerpo = encodeURIComponent(`Estimado/a cliente,\n\nAdjunto el presupuesto ${PRES_NUMERO}.\n\nConcepto: ${PRES_TITULO}\nImporte total: ${total}\n\nRevisarlo y aceptarlo aquí:\n${_clienteUrl()}\n\nUn cordial saludo,\n${EMPRESA_NOMBRE}` + (EMPRESA_TEL ? `\nTel: ${EMPRESA_TEL}` : ''));
     window.location.href = `mailto:${CLIENTE_EMAIL}?subject=${asunto}&body=${cuerpo}`;
     document.getElementById('shareDropdown').classList.add('hidden');
     api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado: 'enviado' }).catch(() => {});
@@ -552,23 +541,16 @@
     toast('Enlace PDF copiado');
   }
 
-  // ── Estado ────────────────────────────────────────────────────────────────
   async function cambiarEstado(estado) {
-    try {
-      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado });
-      toast('Estado actualizado');
-    } catch(err) { toast(err.message, 'err'); }
+    try { await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { estado }); toast('Estado actualizado'); }
+    catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Guardar campo simple (validez) ────────────────────────────────────────
   async function guardarCampo(campo, valor) {
-    try {
-      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { [campo]: valor });
-      toast(`${campo} actualizado`);
-    } catch(err) { toast(err.message, 'err'); }
+    try { await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { [campo]: valor }); toast(`${campo} actualizado`); }
+    catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Descuento / IVA editables ─────────────────────────────────────────────
   function marcarCambio(campo) {
     document.getElementById(campo === 'descuento' ? 'btnSaveDescuento' : 'btnSaveIVA').classList.remove('hidden');
     document.getElementById(campo === 'iva' ? 'btnSaveDescuento' : 'btnSaveIVA').classList.remove('hidden');
@@ -578,12 +560,10 @@
     const desc = parseFloat(document.getElementById('inpDescuento').value) || 0;
     const iva  = parseFloat(document.getElementById('inpIVA').value) || 0;
     try {
-      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { descuento: desc, iva: iva });
-      curDescuento = desc;
-      curIVA = iva;
+      await api('PUT', `/api/presupuestos/${PRESUPUESTO_ID}`, { descuento: desc, iva });
+      curDescuento = desc; curIVA = iva;
       document.getElementById('btnSaveDescuento').classList.add('hidden');
       document.getElementById('btnSaveIVA').classList.add('hidden');
-      // Actualizar etiquetas y totales
       document.getElementById('tDtoLabel').textContent = `Descuento (${desc}%)`;
       document.getElementById('tIvaLabel').textContent = `IVA (${iva}%)`;
       recalcularTotales();
@@ -591,7 +571,6 @@
     } catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Edición inline de líneas ──────────────────────────────────────────────
   function startEdit(lid) {
     const tr = document.getElementById(`linea-${lid}`);
     tr.querySelectorAll('.view-cell').forEach(el => el.classList.add('hidden'));
@@ -606,18 +585,16 @@
 
   async function saveEdit(pid, lid, btn) {
     const tr = document.getElementById(`linea-${lid}`);
-    const tipo       = tr.querySelector('.e-tipo').value;
+    const tipo        = tr.querySelector('.e-tipo').value;
     const descripcion = tr.querySelector('.e-desc').value.trim();
-    const cantidad   = parseFloat(tr.querySelector('.e-cant').value) || 0;
-    const precio     = parseFloat(tr.querySelector('.e-precio').value) || 0;
+    const cantidad    = parseFloat(tr.querySelector('.e-cant').value) || 0;
+    const precio      = parseFloat(tr.querySelector('.e-precio').value) || 0;
     if (!descripcion) return toast('La descripción no puede estar vacía', 'err');
     try {
-      const linea = await api('PUT', `/api/presupuestos/${pid}/lineas/${lid}`,
-        { tipo, descripcion, cantidad, precio_unitario: precio });
-      // Actualizar celdas de vista
+      await api('PUT', `/api/presupuestos/${pid}/lineas/${lid}`, { tipo, descripcion, cantidad, precio_unitario: precio });
       const vc = [...tr.querySelectorAll('.view-cell')];
-      const tipoClass = tipo === 'Material' ? 'tipo-Material' : tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
-      vc[0].innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${tipoClass}">${tipo}</span>`;
+      const tc = tipo === 'Material' ? 'tipo-Material' : tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
+      vc[0].innerHTML = `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${tc}">${tipo}</span>`;
       vc[1].textContent = descripcion;
       vc[2].textContent = cantidad;
       vc[3].textContent = precio.toFixed(2) + ' €';
@@ -628,7 +605,7 @@
     } catch(err) { toast(err.message, 'err'); }
   }
 
-  // ── Modal línea: catálogo + manual ────────────────────────────────────────
+  // ── Modal ─────────────────────────────────────────────────────────────────
   let catalogoItems = null;
   let itemSeleccionado = null;
 
@@ -637,11 +614,14 @@
     lineaTab('catalogo');
     if (!catalogoItems) cargarCatalogo();
   }
+
   function closeLineaModal() {
     document.getElementById('lineaModal').classList.add('hidden');
     itemSeleccionado = null;
     document.getElementById('catalogoSeleccion').classList.add('hidden');
     document.getElementById('catalogoBuscar').value = '';
+    document.getElementById('selCapitulo').value = '';
+    document.getElementById('lCapitulo').value = '';
   }
 
   function lineaTab(t) {
@@ -658,65 +638,47 @@
   async function cargarCatalogo() {
     try {
       catalogoItems = await api('GET', '/api/catalogo/');
-      // Poblar selector de marcas
       const marcas = [...new Set(catalogoItems.map(i => i.marca).filter(Boolean))].sort();
       const sel = document.getElementById('filtroMarca');
-      sel.innerHTML = '<option value="">Todas las marcas</option>' +
-        marcas.map(m => `<option value="${m}">${m}</option>`).join('');
+      sel.innerHTML = '<option value="">Todas las marcas</option>' + marcas.map(m => `<option value="${m}">${m}</option>`).join('');
       renderCatalogo(catalogoItems);
     } catch(e) {
-      document.getElementById('catalogoLista').innerHTML =
-        '<p class="text-sm text-red-400 text-center py-4">Error cargando catálogo</p>';
+      document.getElementById('catalogoLista').innerHTML = '<p class="text-sm text-red-400 text-center py-4">Error cargando catálogo</p>';
     }
   }
 
   function renderCatalogo(items) {
     const lista = document.getElementById('catalogoLista');
-    if (!items.length) {
-      lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">El catálogo está vacío</p>';
-      return;
-    }
+    if (!items.length) { lista.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">Sin resultados</p>'; return; }
     lista.innerHTML = items.map(item => {
       const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
       const marca = item.marca ? `<span class="text-gray-400"> · ${item.marca}</span>` : '';
-      return `
-        <div onclick="seleccionarItem(${item.id})" id="cat-item-${item.id}"
-          class="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition">
-          ${item.foto
-            ? `<img src="/static/uploads/catalogo/${item.foto}" class="w-10 h-10 object-cover rounded-lg shrink-0 border border-gray-100"/>`
-            : `<div class="w-10 h-10 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-300 text-lg">📦</div>`}
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-800 truncate">${item.descripcion}${marca}</p>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${item.tipo}</span>
-              <span class="text-xs text-gray-400">${item.referencia || ''}</span>
-            </div>
+      return `<div onclick="seleccionarItem(${item.id})" id="cat-item-${item.id}"
+        class="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-transparent hover:border-blue-200 hover:bg-blue-50 cursor-pointer transition">
+        ${item.foto ? `<img src="/static/uploads/catalogo/${item.foto}" class="w-10 h-10 object-cover rounded-lg shrink-0 border border-gray-100"/>` : `<div class="w-10 h-10 bg-gray-100 rounded-lg shrink-0 flex items-center justify-center text-gray-300 text-lg">📦</div>`}
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-800 truncate">${item.descripcion}${marca}</p>
+          <div class="flex items-center gap-2 mt-0.5">
+            <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc}">${item.tipo}</span>
+            <span class="text-xs text-gray-400">${item.referencia || ''}</span>
           </div>
-          <span class="text-sm font-bold text-blue-700 shrink-0">${parseFloat(item.precio_unitario).toFixed(2)} €<span class="text-xs font-normal text-gray-400">/${item.unidad}</span></span>
-        </div>`;
+        </div>
+        <span class="text-sm font-bold text-blue-700 shrink-0">${parseFloat(item.precio_unitario).toFixed(2)} €<span class="text-xs font-normal text-gray-400">/${item.unidad}</span></span>
+      </div>`;
     }).join('');
   }
 
   function filtrarCatalogo() {
     if (!catalogoItems) return;
-    const q     = (document.getElementById('catalogoBuscar').value || '').toLowerCase();
-    const tipo  = document.getElementById('filtroTipo').value;
+    const q = (document.getElementById('catalogoBuscar').value || '').toLowerCase();
+    const tipo = document.getElementById('filtroTipo').value;
     const marca = document.getElementById('filtroMarca').value;
-    const filtrados = catalogoItems.filter(i => {
-      if (tipo  && i.tipo  !== tipo)  return false;
+    renderCatalogo(catalogoItems.filter(i => {
+      if (tipo && i.tipo !== tipo) return false;
       if (marca && i.marca !== marca) return false;
-      if (q && !(
-        i.descripcion.toLowerCase().includes(q) ||
-        (i.marca || '').toLowerCase().includes(q) ||
-        (i.referencia || '').toLowerCase().includes(q)
-      )) return false;
+      if (q && !(i.descripcion.toLowerCase().includes(q) || (i.marca||'').toLowerCase().includes(q) || (i.referencia||'').toLowerCase().includes(q))) return false;
       return true;
-    });
-    renderCatalogo(filtrados);
-    if (itemSeleccionado) {
-      const el = document.getElementById(`cat-item-${itemSeleccionado.id}`);
-      if (el) el.classList.add('border-blue-400', 'bg-blue-50');
-    }
+    }));
   }
 
   function seleccionarItem(id) {
@@ -724,15 +686,8 @@
     const item = catalogoItems.find(i => i.id === id);
     if (!item) return;
     itemSeleccionado = item;
-
-    // Quitar selección anterior
-    document.querySelectorAll('[id^="cat-item-"]').forEach(el =>
-      el.classList.remove('border-blue-400', 'bg-blue-100', 'ring-2', 'ring-blue-300'));
-    // Marcar seleccionado
-    const el = document.getElementById(`cat-item-${id}`);
-    if (el) el.classList.add('border-blue-400', 'bg-blue-100', 'ring-2', 'ring-blue-300');
-
-    // Rellenar panel inferior
+    document.querySelectorAll('[id^="cat-item-"]').forEach(el => el.classList.remove('border-blue-400','bg-blue-100','ring-2','ring-blue-300'));
+    document.getElementById(`cat-item-${id}`)?.classList.add('border-blue-400','bg-blue-100','ring-2','ring-blue-300');
     const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
     document.getElementById('selTipoTag').className = `px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${tc}`;
     document.getElementById('selTipoTag').textContent = item.tipo;
@@ -741,6 +696,7 @@
     document.getElementById('selPrecio').textContent = parseFloat(item.precio_unitario).toFixed(2) + ' €/' + item.unidad;
     document.getElementById('selCantidad').value = 1;
     document.getElementById('selPrecioEdit').value = item.precio_unitario;
+    document.getElementById('selCapitulo').value = '';
     document.getElementById('catalogoSeleccion').classList.remove('hidden');
   }
 
@@ -748,13 +704,8 @@
     if (!itemSeleccionado) return;
     const cantidad = parseFloat(document.getElementById('selCantidad').value) || 1;
     const precio   = parseFloat(document.getElementById('selPrecioEdit').value) || 0;
-    const body = {
-      tipo: itemSeleccionado.tipo,
-      descripcion: itemSeleccionado.descripcion,
-      cantidad,
-      precio_unitario: precio,
-      orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length,
-    };
+    const capitulo = document.getElementById('selCapitulo').value.trim() || null;
+    const body = { tipo: itemSeleccionado.tipo, descripcion: itemSeleccionado.descripcion, cantidad, precio_unitario: precio, capitulo, orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length };
     try {
       const linea = await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas`, body);
       agregarFilaLinea(linea);
@@ -766,13 +717,8 @@
 
   document.getElementById('lineaForm').addEventListener('submit', async e => {
     e.preventDefault();
-    const body = {
-      tipo: document.getElementById('lTipo').value,
-      descripcion: document.getElementById('lDesc').value,
-      cantidad: parseFloat(document.getElementById('lCant').value) || 1,
-      precio_unitario: parseFloat(document.getElementById('lPrecio').value) || 0,
-      orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length,
-    };
+    const capitulo = document.getElementById('lCapitulo').value.trim() || null;
+    const body = { tipo: document.getElementById('lTipo').value, descripcion: document.getElementById('lDesc').value, cantidad: parseFloat(document.getElementById('lCant').value) || 1, precio_unitario: parseFloat(document.getElementById('lPrecio').value) || 0, capitulo, orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length };
     try {
       const linea = await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas`, body);
       agregarFilaLinea(linea);
@@ -788,6 +734,7 @@
       await api('DELETE', `/api/presupuestos/${pid}/lineas/${lid}`);
       document.getElementById(`linea-${lid}`).remove();
       recalcularTotales();
+      groupByCapitulo();
       toast('Línea eliminada');
     } catch(err) { toast(err.message, 'err'); }
   }
@@ -797,6 +744,7 @@
     const tc = l.tipo === 'Material' ? 'tipo-Material' : l.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
     const tr = document.createElement('tr');
     tr.id = `linea-${l.id}`;
+    tr.dataset.capitulo = l.capitulo || '';
     tr.className = 'group hover:bg-gray-50';
     tr.innerHTML = `
       <td class="px-3 py-3 view-cell"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${tc}">${l.tipo}</span></td>
@@ -824,24 +772,21 @@
         </span>
       </td>`;
     document.getElementById('lineasBody').appendChild(tr);
+    groupByCapitulo();
   }
 
-  // ── Totales ───────────────────────────────────────────────────────────────
   function recalcularTotales() {
     let base = 0;
     document.querySelectorAll('#lineasBody tr[id^="linea-"]').forEach(tr => {
       const vc = [...tr.querySelectorAll('.view-cell')];
-      const cant   = parseFloat(vc[2]?.textContent) || 0;
-      const precio = parseFloat(vc[3]?.textContent) || 0;
-      base += cant * precio;
+      base += (parseFloat(vc[2]?.textContent) || 0) * (parseFloat(vc[3]?.textContent) || 0);
     });
-    const dto   = base * (curDescuento / 100);
-    const iva   = (base - dto) * (curIVA / 100);
-    const total = base - dto + iva;
+    const dto = base * (curDescuento / 100);
+    const iva = (base - dto) * (curIVA / 100);
     document.getElementById('tBase').textContent = base.toFixed(2) + ' €';
     document.getElementById('tDto').textContent  = '-' + dto.toFixed(2) + ' €';
     document.getElementById('tIva').textContent  = iva.toFixed(2) + ' €';
-    document.getElementById('tTotal').textContent = total.toFixed(2) + ' €';
+    document.getElementById('tTotal').textContent = (base - dto + iva).toFixed(2) + ' €';
     document.getElementById('tDtoRow').classList.toggle('hidden', curDescuento === 0);
   }
 
@@ -853,8 +798,7 @@
     const txt = document.getElementById('aiBtnTxt');
     btn.disabled = true; txt.textContent = 'Procesando...';
     try {
-      const res = await api('POST', '/api/asistente/procesar-lineas',
-        { id_presupuesto: String(PRESUPUESTO_ID), mensaje: msg });
+      const res = await api('POST', '/api/asistente/procesar-lineas', { id_presupuesto: String(PRESUPUESTO_ID), mensaje: msg });
       lineasIA = res.datos_extraidos;
       mostrarPreviewIA(lineasIA);
     } catch(err) { toast(err.message, 'err'); }
@@ -868,16 +812,8 @@
       const tc = item.tipo === 'Material' ? 'tipo-Material' : item.tipo === 'Mano de Obra' ? 'tipo-MO' : 'tipo-Varios';
       const div = document.createElement('div');
       div.className = 'bg-gray-50 rounded-lg p-3 text-xs';
-      div.innerHTML = `
-        <div class="flex items-start gap-2">
-          <span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc} shrink-0">${item.tipo}</span>
-          <span class="flex-1 text-gray-700 font-medium">${item.descripcion}</span>
-        </div>
-        <div class="flex gap-4 mt-1.5 text-gray-500">
-          <span>Cant: <strong>${item.cantidad}</strong></span>
-          <span>P/u: <strong>${parseFloat(item.precio_unitario).toFixed(2)} €</strong></span>
-          <span>Total: <strong>${(item.cantidad * item.precio_unitario).toFixed(2)} €</strong></span>
-        </div>`;
+      div.innerHTML = `<div class="flex items-start gap-2"><span class="px-1.5 py-0.5 rounded text-xs font-medium ${tc} shrink-0">${item.tipo}</span><span class="flex-1 text-gray-700 font-medium">${item.descripcion}</span></div>
+        <div class="flex gap-4 mt-1.5 text-gray-500"><span>Cant: <strong>${item.cantidad}</strong></span><span>P/u: <strong>${parseFloat(item.precio_unitario).toFixed(2)} €</strong></span><span>Total: <strong>${(item.cantidad * item.precio_unitario).toFixed(2)} €</strong></span></div>`;
       container.appendChild(div);
     });
     document.getElementById('aiPreview').classList.remove('hidden');
@@ -887,16 +823,15 @@
 
   async function confirmarIA() {
     if (!lineasIA.length) return;
+    const capitulo = document.getElementById('aiCapitulo').value.trim() || null;
     const orden = document.querySelectorAll('#lineasBody tr[id^="linea-"]').length;
-    const payload = lineasIA.map((l, i) => ({
-      tipo: l.tipo, descripcion: l.descripcion,
-      cantidad: l.cantidad, precio_unitario: l.precio_unitario, orden: orden + i
-    }));
+    const payload = lineasIA.map((l, i) => ({ tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario, capitulo, orden: orden + i }));
     try {
       await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas/bulk`, payload);
       toast('Líneas añadidas');
       cancelarIA();
       document.getElementById('aiMsg').value = '';
+      document.getElementById('aiCapitulo').value = '';
       setTimeout(() => location.reload(), 600);
     } catch(err) { toast(err.message, 'err'); }
   }
@@ -909,25 +844,17 @@
   let reconocimiento = null;
   let grabando = false;
 
-  function toggleVoz() {
-    if (grabando) { pararVoz(); return; }
-    iniciarVoz();
-  }
+  function toggleVoz() { grabando ? pararVoz() : iniciarVoz(); }
 
   function iniciarVoz() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      toast('Tu navegador no soporta reconocimiento de voz. Usa Chrome.', 'err');
-      return;
-    }
+    if (!SR) { toast('Tu navegador no soporta reconocimiento de voz. Usa Chrome.', 'err'); return; }
     reconocimiento = new SR();
     reconocimiento.lang = 'es-ES';
     reconocimiento.continuous = true;
     reconocimiento.interimResults = true;
-
     let textoBase = document.getElementById('aiMsg').value;
     if (textoBase && !textoBase.endsWith(' ')) textoBase += ' ';
-
     reconocimiento.onstart = () => {
       grabando = true;
       document.getElementById('micStatus').classList.remove('hidden');
@@ -935,10 +862,8 @@
       document.getElementById('micIcon').classList.add('text-red-500');
       document.getElementById('micIcon').classList.remove('text-gray-500');
     };
-
     reconocimiento.onresult = (e) => {
-      let interino = '';
-      let final = '';
+      let interino = '', final = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) final += e.results[i][0].transcript;
         else interino += e.results[i][0].transcript;
@@ -946,14 +871,8 @@
       document.getElementById('aiMsg').value = textoBase + final + interino;
       if (final) textoBase += final;
     };
-
-    reconocimiento.onerror = (e) => {
-      if (e.error !== 'aborted') toast('Error de micrófono: ' + e.error, 'err');
-      pararVoz();
-    };
-
+    reconocimiento.onerror = (e) => { if (e.error !== 'aborted') toast('Error de micrófono: ' + e.error, 'err'); pararVoz(); };
     reconocimiento.onend = () => { if (grabando) pararVoz(); };
-
     reconocimiento.start();
   }
 
@@ -968,6 +887,7 @@
 
   function limpiarIA() {
     document.getElementById('aiMsg').value = '';
+    document.getElementById('aiCapitulo').value = '';
     cancelarIA();
     pararVoz();
   }
