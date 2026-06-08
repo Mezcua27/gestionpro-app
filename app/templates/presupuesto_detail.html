@@ -117,7 +117,7 @@
         </thead>
         <tbody id="lineasBody" class="divide-y divide-gray-50">
           {% for l in p.lineas %}
-          <tr id="linea-{{ l.id }}" data-capitulo="{{ l.capitulo or '' }}" class="group hover:bg-gray-50">
+          <tr id="linea-{{ l.id }}" data-capitulo="{{ l.capitulo or '' }}" data-coste="{{ l.precio_coste or 0 }}" class="group hover:bg-gray-50">
             <td class="px-3 py-3 view-cell">
               <span class="px-2 py-0.5 rounded-full text-xs font-medium
                 {% if l.tipo=='Material' %}tipo-Material{% elif l.tipo=='Mano de Obra' %}tipo-MO{% else %}tipo-Varios{% endif %}">
@@ -179,6 +179,24 @@
           <span>TOTAL</span>
           <span id="tTotal">{{ "%.2f"|format(total_final) }} €</span>
         </div>
+        {% set coste_total = namespace(v=0) %}
+        {% for l in p.lineas %}{% set coste_total.v = coste_total.v + l.cantidad * (l.precio_coste or 0) %}{% endfor %}
+        {% if coste_total.v > 0 %}
+        <div class="flex justify-between text-sm pt-2 border-t mt-1" id="margenRow">
+          <span class="text-gray-500">Margen bruto</span>
+          <span id="tMargen" class="font-semibold
+            {% set mb = total_base - coste_total.v %}
+            {% if mb > 0 %}text-green-600{% else %}text-red-500{% endif %}">
+            {{ "%.2f"|format(total_base - coste_total.v) }} €
+            ({{ "%.0f"|format(((total_base - coste_total.v) / total_base * 100) if total_base > 0 else 0) }}%)
+          </span>
+        </div>
+        {% else %}
+        <div class="flex justify-between text-sm pt-2 border-t mt-1" id="margenRow">
+          <span class="text-gray-400 text-xs">Margen bruto</span>
+          <span id="tMargen" class="text-xs text-gray-300">— (añade precio coste a los items)</span>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -749,7 +767,7 @@
     const cantidad = parseFloat(document.getElementById('selCantidad').value) || 1;
     const precio   = parseFloat(document.getElementById('selPrecioEdit').value) || 0;
     const capitulo = document.getElementById('selCapitulo').value.trim() || null;
-    const body = { tipo: itemSeleccionado.tipo, descripcion: itemSeleccionado.descripcion, cantidad, precio_unitario: precio, capitulo, orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length };
+    const body = { tipo: itemSeleccionado.tipo, descripcion: itemSeleccionado.descripcion, cantidad, precio_unitario: precio, precio_coste: itemSeleccionado.precio_coste || 0, capitulo, orden: document.querySelectorAll('#lineasBody tr[id^="linea-"]').length };
     try {
       const linea = await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas`, body);
       agregarFilaLinea(linea);
@@ -789,6 +807,7 @@
     const tr = document.createElement('tr');
     tr.id = `linea-${l.id}`;
     tr.dataset.capitulo = l.capitulo || '';
+    tr.dataset.coste = l.precio_coste || 0;
     tr.className = 'group hover:bg-gray-50';
     tr.innerHTML = `
       <td class="px-3 py-3 view-cell"><span class="px-2 py-0.5 rounded-full text-xs font-medium ${tc}">${l.tipo}</span></td>
@@ -820,18 +839,35 @@
   }
 
   function recalcularTotales() {
-    let base = 0;
+    let base = 0, costeTotal = 0;
     document.querySelectorAll('#lineasBody tr[id^="linea-"]').forEach(tr => {
       const vc = [...tr.querySelectorAll('.view-cell')];
-      base += (parseFloat(vc[2]?.textContent) || 0) * (parseFloat(vc[3]?.textContent) || 0);
+      const cant  = parseFloat(vc[2]?.textContent) || 0;
+      const precio = parseFloat(vc[3]?.textContent) || 0;
+      const coste  = parseFloat(tr.dataset.coste) || 0;
+      base += cant * precio;
+      costeTotal += cant * coste;
     });
     const dto = base * (curDescuento / 100);
     const iva = (base - dto) * (curIVA / 100);
-    document.getElementById('tBase').textContent = base.toFixed(2) + ' €';
-    document.getElementById('tDto').textContent  = '-' + dto.toFixed(2) + ' €';
-    document.getElementById('tIva').textContent  = iva.toFixed(2) + ' €';
+    document.getElementById('tBase').textContent  = base.toFixed(2) + ' €';
+    document.getElementById('tDto').textContent   = '-' + dto.toFixed(2) + ' €';
+    document.getElementById('tIva').textContent   = iva.toFixed(2) + ' €';
     document.getElementById('tTotal').textContent = (base - dto + iva).toFixed(2) + ' €';
     document.getElementById('tDtoRow').classList.toggle('hidden', curDescuento === 0);
+    // Margen bruto
+    const margenEl = document.getElementById('tMargen');
+    if (margenEl) {
+      if (costeTotal > 0) {
+        const margen = base - costeTotal;
+        const pct = base > 0 ? Math.round(margen / base * 100) : 0;
+        margenEl.textContent = margen.toFixed(2) + ' € (' + pct + '%)';
+        margenEl.className = 'font-semibold ' + (margen >= 0 ? 'text-green-600' : 'text-red-500');
+      } else {
+        margenEl.textContent = '— (añade precio coste a los items)';
+        margenEl.className = 'text-xs text-gray-300';
+      }
+    }
   }
 
   // ── Asistente IA ──────────────────────────────────────────────────────────
@@ -869,7 +905,7 @@
     if (!lineasIA.length) return;
     const capitulo = document.getElementById('aiCapitulo').value.trim() || null;
     const orden = document.querySelectorAll('#lineasBody tr[id^="linea-"]').length;
-    const payload = lineasIA.map((l, i) => ({ tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario, capitulo, orden: orden + i }));
+    const payload = lineasIA.map((l, i) => ({ tipo: l.tipo, descripcion: l.descripcion, cantidad: l.cantidad, precio_unitario: l.precio_unitario, precio_coste: l.precio_coste || 0, capitulo, orden: orden + i }));
     try {
       await api('POST', `/api/presupuestos/${PRESUPUESTO_ID}/lineas/bulk`, payload);
       toast('Líneas añadidas');

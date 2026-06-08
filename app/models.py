@@ -161,9 +161,10 @@ class LineaPresupuesto(Base):
     descripcion = Column(String, nullable=False)
     cantidad = Column(Float, default=1.0)
     precio_unitario = Column(Float, default=0.0)
+    precio_coste = Column(Float, default=0.0, nullable=True)
     unidad = Column(String, default="ud", nullable=True)
     referencia = Column(String, nullable=True)
-    capitulo = Column(String, nullable=True)          # ← NUEVO
+    capitulo = Column(String, nullable=True)
     orden = Column(Integer, default=0)
 
     presupuesto = relationship("Presupuesto", back_populates="lineas")
